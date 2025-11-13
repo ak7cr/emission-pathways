@@ -15,6 +15,18 @@ from emission_utils import (frp_to_emission, get_emission_factor,
                             list_pollutants, list_vegetation_types, 
                             EMISSION_FACTORS)
 
+# Optional: Uncomment for significant performance boost with large particle counts
+# try:
+#     from numba import jit
+#     HAS_NUMBA = True
+# except ImportError:
+#     HAS_NUMBA = False
+#     # Define dummy decorator if numba not available
+#     def jit(*args, **kwargs):
+#         def decorator(func):
+#             return func
+#         return decorator if args and callable(args[0]) else decorator
+
 app = Flask(__name__)
 wind_fetcher = WindDataFetcher()
 
@@ -41,6 +53,16 @@ sim_state = {
     'enable_decay': False,  # Enable chemical decay/loss
     'decay_rate': 0.0,  # Decay rate constant (1/s), e.g., 1/(24*3600) for 24h lifetime
     'particle_active': None,  # Boolean array tracking active particles
+    # Performance optimization
+    'super_particle_ratio': 1,  # Each computational particle represents this many physical particles
+    'use_bilinear_interp': True,  # Use bilinear interpolation for wind (more accurate)
+}
+
+# Wind field interpolators (cached for performance)
+wind_interpolators = {
+    'U_interp': None,
+    'V_interp': None,
+    'last_update_time': -1
 }
 
 # Emission metadata for each hotspot
@@ -52,28 +74,43 @@ emission_data = {
 }
 
 # Domain constants (MUST be defined before calculate_cell_area)
-xmin, xmax, ymin, ymax = 0.0, 200.0, 0.0, 200.0
+# Domain in km for display, but internally converted to meters for physics
+xmin, xmax, ymin, ymax = 0.0, 200.0, 0.0, 200.0  # km
 nx, ny = 120, 120
-x = np.linspace(xmin, xmax, nx)
-y = np.linspace(ymin, ymax, ny)
+x = np.linspace(xmin, xmax, nx)  # km
+y = np.linspace(ymin, ymax, ny)  # km
+
+# Unit conversion factor
+KM_TO_M = 1000.0  # meters per kilometer
 
 # Calculate cell area (assuming square cells in km, convert to m²)
 def calculate_cell_area():
     """Calculate grid cell area in m²"""
-    dx = (xmax - xmin) / nx  # km
-    dy = (ymax - ymin) / ny  # km
-    return (dx * 1000) * (dy * 1000)  # Convert to m²
+    dx_km = (xmax - xmin) / nx  # km
+    dy_km = (ymax - ymin) / ny  # km
+    dx_m = dx_km * KM_TO_M  # m
+    dy_m = dy_km * KM_TO_M  # m
+    return dx_m * dy_m  # m²
 
 sim_state['cell_area'] = calculate_cell_area()
 
-# Calculate mass per particle based on total emissions
+# Calculate mass per particle based on total emissions and super-particle ratio
 def update_mass_per_particle():
-    """Update mass per particle based on total emission and particle count"""
-    total_particles = sim_state['npph'] * len(sim_state['hotspots'])
-    if total_particles > 0:
+    """
+    Update mass per particle based on total emission and particle count
+    
+    When using super-particles, each computational particle represents
+    multiple physical particles to improve performance.
+    """
+    total_computational_particles = sim_state['npph'] * len(sim_state['hotspots'])
+    super_ratio = sim_state.get('super_particle_ratio', 1)
+    
+    if total_computational_particles > 0:
         # Convert total mass from grams to micrograms
         total_mass_ug = emission_data['total_mass_per_hotspot'] * len(sim_state['hotspots']) * 1e6
-        sim_state['mass_per_particle'] = total_mass_ug / total_particles
+        
+        # Each computational particle represents super_ratio physical particles
+        sim_state['mass_per_particle'] = (total_mass_ug / total_computational_particles) * super_ratio
     return sim_state['mass_per_particle']
 
 # Wind data cache
@@ -89,11 +126,66 @@ wind_data_cache = {
 }
 
 def synthetic_wind_field(t):
+    """
+    Generate synthetic wind field for testing
+    
+    Returns:
+    --------
+    U, V : ndarray, shape (ny, nx)
+        Wind components in m/s
+    """
     uu = 3.0 + 1.0 * np.sin(2*np.pi*(y/200.0 + 0.06*t))
     vv = 0.3 * np.cos(2*np.pi*(x/200.0 - 0.03*t))
-    U = np.tile(uu, (nx,1)).T
-    V = np.tile(vv, (ny,1))
+    U = np.tile(uu, (nx,1)).T  # m/s
+    V = np.tile(vv, (ny,1))  # m/s
     return U, V
+
+def get_wind_at_particles(U, V, particle_x, particle_y):
+    """
+    Interpolate wind field at particle positions using bilinear interpolation
+    
+    Parameters:
+    -----------
+    U, V : ndarray, shape (ny, nx)
+        Wind field components in m/s
+    particle_x, particle_y : ndarray, shape (n_particles,)
+        Particle positions in km
+    
+    Returns:
+    --------
+    u_p, v_p : ndarray, shape (n_particles,)
+        Wind components at particle positions in m/s
+    """
+    if not sim_state.get('use_bilinear_interp', True):
+        # Old method: simple averaging (faster but less accurate)
+        u_p = np.interp(particle_x, x, U.mean(axis=0))
+        v_p = np.interp(particle_y, y, V.mean(axis=1))
+        return u_p, v_p
+    
+    # Bilinear interpolation using RegularGridInterpolator
+    # Create interpolators if not cached or if wind field changed
+    if (wind_interpolators['U_interp'] is None or 
+        wind_interpolators['V_interp'] is None):
+        # Note: RegularGridInterpolator expects (y, x) ordering for 2D grids
+        wind_interpolators['U_interp'] = RegularGridInterpolator(
+            (y, x), U, method='linear', bounds_error=False, fill_value=0.0
+        )
+        wind_interpolators['V_interp'] = RegularGridInterpolator(
+            (y, x), V, method='linear', bounds_error=False, fill_value=0.0
+        )
+    else:
+        # Update values (faster than recreating interpolator)
+        wind_interpolators['U_interp'].values = U
+        wind_interpolators['V_interp'].values = V
+    
+    # Prepare points for interpolation: (y, x) pairs
+    points = np.column_stack([particle_y, particle_x])
+    
+    # Interpolate wind at particle positions
+    u_p = wind_interpolators['U_interp'](points)
+    v_p = wind_interpolators['V_interp'](points)
+    
+    return u_p, v_p
 
 def load_wind_data(filepath=None):
     """
@@ -264,16 +356,22 @@ def advect(p, t, dt, sigma_turb):
     """
     Advect particles with turbulent diffusion and apply loss processes
     
+    All units are consistent:
+    - Positions (x, y) in km
+    - Wind velocities (u, v) in m/s
+    - Time (t, dt) in seconds
+    - Diffusion coefficient (sigma_turb) in m/s
+    
     Parameters:
     -----------
     p : ndarray, shape (n_particles, 3)
-        Particle positions and mass: [x, y, mass_fraction]
+        Particle positions and mass: [x(km), y(km), mass_fraction]
     t : float
-        Current time
+        Current time in seconds
     dt : float
-        Time step
+        Time step in seconds
     sigma_turb : float
-        Turbulent diffusion coefficient
+        Turbulent diffusion coefficient in m/s
     
     Returns:
     --------
@@ -287,18 +385,28 @@ def advect(p, t, dt, sigma_turb):
     if n_active == 0:
         return p
     
-    # Get wind field
+    # Get wind field (m/s)
     if sim_state['wind_type'] == 'real':
         U, V = real_wind_field(t)
     else:
         U, V = synthetic_wind_field(t)
     
-    # Advection and diffusion (only for active particles)
-    u = np.interp(p[active, 0], x, U.mean(axis=0))
-    v = np.interp(p[active, 1], y, V.mean(axis=1))
+    # Interpolate wind at particle positions (bilinear interpolation)
+    # Particle positions are in km, wind is in m/s
+    u_p, v_p = get_wind_at_particles(U, V, p[active, 0], p[active, 1])
     
-    p[active, 0] += u * dt + np.sqrt(2 * sigma_turb * dt) * np.random.randn(n_active)
-    p[active, 1] += v * dt + np.sqrt(2 * sigma_turb * dt) * np.random.randn(n_active)
+    # Advection: convert wind (m/s) to displacement (km)
+    # dx = u * dt (m) = u * dt / 1000 (km)
+    dx_km = (u_p * dt) / KM_TO_M  # km
+    dy_km = (v_p * dt) / KM_TO_M  # km
+    
+    # Turbulent diffusion: sigma_turb is in m/s
+    # Convert to km for consistency with domain units
+    diffusion_std_km = np.sqrt(2 * sigma_turb * dt) / KM_TO_M  # km
+    
+    # Update positions (vectorized)
+    p[active, 0] += dx_km + diffusion_std_km * np.random.randn(n_active)
+    p[active, 1] += dy_km + diffusion_std_km * np.random.randn(n_active)
     
     # Apply boundary conditions
     boundary_type = sim_state.get('boundary_type', 'absorbing')
@@ -502,7 +610,9 @@ def get_state():
         'enable_decay': sim_state.get('enable_decay', False),
         'decay_rate': sim_state.get('decay_rate', 0.0),
         'active_particles': int(sim_state['particle_active'].sum()) if sim_state['particle_active'] is not None else 0,
-        'total_particles': len(sim_state['particle_active']) if sim_state['particle_active'] is not None else 0
+        'total_particles': len(sim_state['particle_active']) if sim_state['particle_active'] is not None else 0,
+        'super_particle_ratio': sim_state.get('super_particle_ratio', 1),
+        'use_bilinear_interp': sim_state.get('use_bilinear_interp', True)
     })
 
 @app.route('/api/physics', methods=['GET', 'POST'])
@@ -545,6 +655,38 @@ def manage_physics():
             'message': 'Physics parameters updated'
         })
 
+@app.route('/api/performance', methods=['GET'])
+def get_performance_stats():
+    """Get performance and scaling statistics"""
+    n_total = len(sim_state['particle_active']) if sim_state['particle_active'] is not None else 0
+    n_active = int(sim_state['particle_active'].sum()) if sim_state['particle_active'] is not None else 0
+    super_ratio = sim_state.get('super_particle_ratio', 1)
+    
+    # Calculate effective physical particle count
+    n_physical = n_total * super_ratio
+    n_physical_active = n_active * super_ratio
+    
+    return jsonify({
+        'success': True,
+        'performance': {
+            'computational_particles': {
+                'total': n_total,
+                'active': n_active,
+                'inactive': n_total - n_active
+            },
+            'physical_particles': {
+                'total': n_physical,
+                'active': n_physical_active,
+                'inactive': n_physical - n_physical_active
+            },
+            'super_particle_ratio': super_ratio,
+            'use_bilinear_interp': sim_state.get('use_bilinear_interp', True),
+            'grid_resolution': f'{nx}x{ny}',
+            'domain_size_km': f'{xmax-xmin}x{ymax-ymin}',
+            'cell_size_m': f'{np.sqrt(sim_state["cell_area"]):.1f}'
+        }
+    })
+
 @app.route('/api/hotspots', methods=['POST'])
 def update_hotspots():
     """Add, remove, or move hotspots"""
@@ -558,24 +700,49 @@ def update_hotspots():
 def update_params():
     """Update simulation parameters"""
     data = request.json
+    reset_needed = False
+    
     if 'sigma_turb' in data:
         sim_state['sigma_turb'] = float(data['sigma_turb'])
+        reset_needed = True
+        
     if 'npph' in data:
         sim_state['npph'] = int(data['npph'])
+        reset_needed = True
+        
     if 'dt' in data:
         sim_state['dt'] = float(data['dt'])
+        reset_needed = True
+        
     if 'wind_type' in data:
         sim_state['wind_type'] = data['wind_type']
         # Attempt to load wind data if switching to real
         if data['wind_type'] == 'real' and not wind_data_cache['loaded']:
             load_wind_data()
+        reset_needed = True
+        
     if 'show_wind_vectors' in data:
         sim_state['show_wind_vectors'] = bool(data['show_wind_vectors'])
         # Don't reset particles for this change
         return jsonify({'success': True})
     
-    sim_state['particles'] = None  # Reset particles
-    sim_state['current_frame'] = 0
+    if 'super_particle_ratio' in data:
+        ratio = int(data['super_particle_ratio'])
+        if ratio >= 1:
+            sim_state['super_particle_ratio'] = ratio
+            update_mass_per_particle()
+            reset_needed = True
+    
+    if 'use_bilinear_interp' in data:
+        sim_state['use_bilinear_interp'] = bool(data['use_bilinear_interp'])
+        # Clear cached interpolators
+        wind_interpolators['U_interp'] = None
+        wind_interpolators['V_interp'] = None
+    
+    if reset_needed:
+        sim_state['particles'] = None
+        sim_state['current_frame'] = 0
+    
     return jsonify({'success': True})
 
 @app.route('/api/reset', methods=['POST'])
