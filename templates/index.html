@@ -424,13 +424,37 @@
                 <div class="control-section">
                     <h3>⚙️ Parameters</h3>
                     
+                    <!-- Speed Multiplier -->
+                    <div class="param-control" style="border: 2px solid #667eea; padding: 12px; border-radius: 8px; background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); margin-bottom: 15px;">
+                        <label style="font-weight: bold; color: #667eea;">
+                            🚀 Speed Multiplier: 
+                            <span class="param-value" id="speed-multiplier-val" style="color: #764ba2; font-size: 1.1em;">1.0x</span>
+                        </label>
+                        <input type="range" id="speed-multiplier" min="0.1" max="10" step="0.1" value="1.0" 
+                               oninput="updateSpeedMultiplier(this.value)"
+                               style="margin-top: 8px;">
+                        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 8px;">
+                            <button onclick="setMultiplier(0.1)" style="padding: 4px; font-size: 0.8em; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">0.1x</button>
+                            <button onclick="setMultiplier(0.5)" style="padding: 4px; font-size: 0.8em; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">0.5x</button>
+                            <button onclick="setMultiplier(1)" style="padding: 4px; font-size: 0.8em; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">1x</button>
+                            <button onclick="setMultiplier(5)" style="padding: 4px; font-size: 0.8em; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">5x</button>
+                            <button onclick="setMultiplier(10)" style="padding: 4px; font-size: 0.8em; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">10x</button>
+                        </div>
+                        <div style="font-size: 0.85em; color: #666; margin-top: 5px;">
+                            Controls simulation speed - Higher = Faster particle transport
+                        </div>
+                    </div>
+                    
                     <div class="param-control">
                         <label>
                             Turbulent Diffusion (σ_turb): 
-                            <span class="param-value" id="sigma-val">0.9</span>
+                            <span class="param-value" id="sigma-val">2.5</span>
                         </label>
-                        <input type="range" id="sigma-turb" min="0" max="3" step="0.1" value="0.9" 
+                        <input type="range" id="sigma-turb" min="0.1" max="10" step="0.1" value="2.5" 
                                oninput="updateParam('sigma_turb', this.value)">
+                        <div style="font-size: 0.85em; color: #666; margin-top: 3px;">
+                            Controls plume spreading (0.1 = tight, 10 = very dispersed)
+                        </div>
                     </div>
 
                     <div class="param-control">
@@ -440,15 +464,21 @@
                         </label>
                         <input type="range" id="npph" min="500" max="10000" step="500" value="2500" 
                                oninput="updateParam('npph', this.value)">
+                        <div style="font-size: 0.85em; color: #666; margin-top: 3px;">
+                            More particles = smoother plume but slower simulation
+                        </div>
                     </div>
 
                     <div class="param-control">
                         <label>
-                            Time Step (dt): 
-                            <span class="param-value" id="dt-val">0.2</span>
+                            Base Time Step (dt): 
+                            <span class="param-value" id="dt-val">30.0</span> seconds
                         </label>
-                        <input type="range" id="dt" min="0.1" max="1.0" step="0.1" value="0.2" 
-                               oninput="updateParam('dt', this.value)">
+                        <input type="range" id="dt" min="1" max="120" step="1" value="30" 
+                               oninput="updateBaseTimestep(this.value)">
+                        <div style="font-size: 0.85em; color: #666; margin-top: 3px;">
+                            Actual dt = <span id="actual-dt" style="font-weight: bold; color: #667eea;">30.0</span>s (base × speed multiplier)
+                        </div>
                     </div>
 
                     <div class="param-control">
@@ -741,6 +771,57 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({[param]: value})
             });
+        }
+
+        async function updateBaseTimestep(value) {
+            // Update display
+            document.getElementById('dt-val').textContent = parseFloat(value).toFixed(1);
+            
+            // Calculate actual dt with multiplier
+            const multiplier = parseFloat(document.getElementById('speed-multiplier').value);
+            const actualDt = parseFloat(value) * multiplier;
+            
+            // Update actual dt display
+            updateActualDt();
+            
+            // Send the actual dt to the server
+            await fetch('/api/params', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({dt: actualDt})
+            });
+        }
+
+        async function updateSpeedMultiplier(value) {
+            const multiplier = parseFloat(value);
+            document.getElementById('speed-multiplier-val').textContent = multiplier.toFixed(1) + 'x';
+            
+            // Get base dt value
+            const baseDt = parseFloat(document.getElementById('dt').value);
+            const actualDt = baseDt * multiplier;
+            
+            // Update display
+            updateActualDt();
+            
+            // Send the actual dt to the server
+            await fetch('/api/params', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({dt: actualDt})
+            });
+        }
+
+        function setMultiplier(value) {
+            const slider = document.getElementById('speed-multiplier');
+            slider.value = value;
+            updateSpeedMultiplier(value);
+        }
+
+        function updateActualDt() {
+            const baseDt = parseFloat(document.getElementById('dt').value);
+            const multiplier = parseFloat(document.getElementById('speed-multiplier').value);
+            const actualDt = baseDt * multiplier;
+            document.getElementById('actual-dt').textContent = actualDt.toFixed(1);
         }
 
         async function updateWindType() {
