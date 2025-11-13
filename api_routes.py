@@ -4,6 +4,7 @@ Flask API routes for simulation control
 from flask import jsonify, request
 import os
 from datetime import datetime, timedelta
+import numpy as np
 
 def register_routes(app, sim_state, emission_data, wind_data_cache, 
                    wind_fetcher, update_mass_per_particle,
@@ -223,6 +224,54 @@ def register_routes(app, sim_state, emission_data, wind_data_cache,
             'updated': updated_params,
             'reset': reset_needed,
             'message': f'Updated {len(updated_params)} parameter(s)' + (' and reset simulation' if reset_needed else '')
+        })
+
+    @app.route('/api/domain-scale', methods=['POST'])
+    def update_domain_scale():
+        """Update domain scale dynamically"""
+        import simulation_state as simstate
+        
+        data = request.json
+        scale_name = data.get('scale', 'city')
+        domain_size = data.get('domain_size', 50)
+        hotspots = data.get('hotspots', [[10.0, 30.0], [15.0, 32.5], [7.5, 22.5]])
+        
+        # Update domain bounds
+        simstate.xmin = 0.0
+        simstate.xmax = float(domain_size)
+        simstate.ymin = 0.0
+        simstate.ymax = float(domain_size)
+        
+        # Recreate grid
+        simstate.x = np.linspace(simstate.xmin, simstate.xmax, simstate.nx)
+        simstate.y = np.linspace(simstate.ymin, simstate.ymax, simstate.ny)
+        
+        # Update hotspots
+        sim_state['hotspots'] = hotspots
+        
+        # Recalculate cell area
+        sim_state['cell_area'] = simstate.calculate_cell_area()
+        
+        # Recalculate mass per particle
+        update_mass_per_particle()
+        
+        # Reset simulation
+        sim_state['particles'] = None
+        sim_state['particle_active'] = None
+        sim_state['current_frame'] = 0
+        
+        # Clear wind cache
+        wind_data_cache['loaded'] = False
+        
+        resolution_m = (domain_size * 1000) / simstate.nx
+        
+        return jsonify({
+            'success': True,
+            'scale': scale_name,
+            'domain_size': domain_size,
+            'resolution_m': resolution_m,
+            'hotspots': hotspots,
+            'message': f'Domain scaled to {scale_name}: {domain_size}×{domain_size} km (~{resolution_m:.0f}m resolution)'
         })
 
     @app.route('/api/reset', methods=['POST'])
@@ -543,3 +592,282 @@ def register_routes(app, sim_state, emission_data, wind_data_cache,
             'frame': sim_state['current_frame'],
             'images': images
         })
+    
+    @app.route('/api/validate', methods=['POST'])
+    def validate_simulation():
+        """
+        Validate model against ground observations
+        
+        Request body:
+        {
+            "source": "openaq" | "cpcb" | "synthetic",
+            "lat_min": float, "lat_max": float,
+            "lon_min": float, "lon_max": float,
+            "parameter": "pm25" | "pm10",
+            "threshold": float (optional, for exceedance metrics),
+            "n_synthetic_stations": int (for synthetic data)
+        }
+        """
+        from validation import ValidationPipeline
+        from simulation_state import x, y, xmin, xmax, ymin, ymax
+        
+        data = request.json
+        source = data.get('source', 'synthetic')
+        
+        # Initialize validation pipeline
+        validator = ValidationPipeline()
+        
+        # Fetch observations based on source
+        observations = []
+        if source == 'openaq':
+            observations = validator.fetch_openaq_data(
+                lat_min=data.get('lat_min', 0),
+                lat_max=data.get('lat_max', 50),
+                lon_min=data.get('lon_min', 0),
+                lon_max=data.get('lon_max', 50),
+                parameter=data.get('parameter', 'pm25'),
+                limit=data.get('limit', 1000)
+            )
+        elif source == 'cpcb':
+            observations = validator.fetch_cpcb_data(
+                state=data.get('state', 'Delhi'),
+                city=data.get('city', 'Delhi'),
+                parameter=data.get('parameter', 'pm2.5'),
+                api_key=data.get('api_key')
+            )
+        elif source == 'synthetic':
+            # Create synthetic observations for testing
+            observations = validator.create_synthetic_observations(
+                n_stations=data.get('n_synthetic_stations', 10),
+                lat_range=(ymin, ymax),
+                lon_range=(xmin, xmax),
+                concentration_range=(10, 100)
+            )
+        
+        if len(observations) == 0:
+            return jsonify({
+                'success': False,
+                'error': 'No observations fetched',
+                'message': 'Try using source="synthetic" for testing'
+            }), 400
+        
+        # Get current concentration field
+        if sim_state['particles'] is None:
+            return jsonify({
+                'success': False,
+                'error': 'No simulation data available. Run simulation first.'
+            }), 400
+        
+        # concentration_field_func returns (H_normalized, H_physical)
+        # We need the physical concentration for validation
+        _, conc_field_physical = concentration_field_func(sim_state)
+        
+        # Simple lat/lon to grid coordinate conversion (identity for now)
+        # In real application, you'd use proper geographic projection
+        def lon_to_x(lon):
+            return lon
+        def lat_to_y(lat):
+            return lat
+        
+        # Import simulation_state to get current grid values
+        import simulation_state
+        
+        # Extract modeled values at station locations
+        modeled, observed = validator.extract_model_values_at_stations(
+            conc_field_physical, simulation_state.x, simulation_state.y, observations, lat_to_y, lon_to_x
+        )
+        
+        # Compute validation metrics
+        threshold = data.get('threshold', None)  # e.g., 35 µg/m³ for PM2.5
+        metrics = validator.compute_metrics(modeled, observed, threshold)
+        
+        # Generate report
+        report = validator.generate_validation_report(metrics, modeled, observed)
+        
+        return jsonify({
+            'success': True,
+            'n_stations': len(observations),
+            'metrics': metrics,
+            'report': report,
+            'stations': [{
+                'id': obs['station_id'],
+                'name': obs['station_name'],
+                'lat': obs['latitude'],
+                'lon': obs['longitude'],
+                'observed': obs['value'],
+                'modeled': float(mod)
+            } for obs, mod in zip(observations[:20], modeled[:20])]  # First 20 stations
+        })
+    
+    @app.route('/api/ensemble/generate', methods=['POST'])
+    def generate_ensemble():
+        """
+        Generate ensemble configurations with perturbed parameters
+        
+        Request body:
+        {
+            "n_members": int,
+            "perturbations": {
+                "wind_speed_factor": [min, max],
+                "wind_direction_offset": [min_deg, max_deg],
+                "mixing_height_factor": [min, max],
+                "emission_factor": [min, max],
+                "turbulence_factor": [min, max]
+            },
+            "seed": int (optional)
+        }
+        """
+        from ensemble import EnsembleSimulation
+        
+        data = request.json
+        n_members = data.get('n_members', 10)
+        perturbations = data.get('perturbations', {
+            'wind_speed_factor': (0.8, 1.2),
+            'mixing_height_factor': (0.7, 1.3),
+            'emission_factor': (0.5, 1.5),
+            'turbulence_factor': (0.8, 1.2)
+        })
+        seed = data.get('seed', 42)
+        
+        # Initialize ensemble
+        ensemble = EnsembleSimulation(sim_state)
+        
+        # Generate ensemble configurations
+        configs = ensemble.generate_ensemble_configs(
+            n_members=n_members,
+            perturbations=perturbations,
+            seed=seed
+        )
+        
+        # Store ensemble in session (in production, use proper session management)
+        sim_state['ensemble'] = ensemble
+        sim_state['ensemble_configs'] = configs
+        
+        return jsonify({
+            'success': True,
+            'n_members': n_members,
+            'perturbations': perturbations,
+            'configs': [{
+                'member': i,
+                'wind_speed_pert': cfg.get('wind_speed_perturbation', 1.0),
+                'wind_dir_offset': cfg.get('wind_direction_offset', 0.0),
+                'mixing_height': cfg.get('mixing_height', sim_state['mixing_height']),
+                'emission_scaling': cfg.get('emission_scaling', 1.0),
+                'sigma_turb': cfg.get('sigma_turb', sim_state['sigma_turb'])
+            } for i, cfg in enumerate(configs)]
+        })
+    
+    @app.route('/api/ensemble/run', methods=['POST'])
+    def run_ensemble():
+        """
+        Run ensemble simulation and compute statistics
+        
+        Request body:
+        {
+            "n_steps": int,
+            "compute_arrival_stats": bool,
+            "target_location": [x, y] (if computing arrival stats)
+        }
+        """
+        from ensemble import EnsembleSimulation
+        import numpy as np
+        
+        data = request.json
+        n_steps = data.get('n_steps', 50)
+        
+        if 'ensemble' not in sim_state or 'ensemble_configs' not in sim_state:
+            return jsonify({
+                'success': False,
+                'error': 'Ensemble not initialized. Call /api/ensemble/generate first.'
+            }), 400
+        
+        ensemble = sim_state['ensemble']
+        configs = sim_state['ensemble_configs']
+        
+        # Run each ensemble member
+        concentration_fields = []
+        particle_trajectories = []
+        
+        print(f"\nRunning ensemble: {len(configs)} members × {n_steps} steps...")
+        
+        for i, config in enumerate(configs):
+            print(f"  Member {i+1}/{len(configs)}...", end='', flush=True)
+            
+            # Create temporary sim state for this member
+            member_state = sim_state.copy()
+            member_state.update(config)
+            
+            # Initialize particles
+            particles, particle_active = initialize_particles_func(
+                member_state['hotspots'],
+                member_state['npph']
+            )
+            member_state['particles'] = particles
+            member_state['particle_active'] = particle_active
+            
+            # Run simulation for n_steps
+            for step in range(n_steps):
+                t = step * member_state['dt']
+                member_state['particles'] = advect_func(member_state, t)
+            
+            # Compute final concentration field
+            # concentration_field_func returns (H_normalized, H_physical) - use physical
+            _, conc_field_physical = concentration_field_func(member_state)
+            concentration_fields.append(conc_field_physical)
+            particle_trajectories.append(member_state['particles'])
+            
+            print(f" done!")
+        
+        print(f"Ensemble complete! Computing statistics...")
+        
+        # Compute ensemble statistics
+        statistics = ensemble.compute_ensemble_statistics(concentration_fields)
+        
+        # Compute arrival time statistics if requested
+        arrival_stats = None
+        if data.get('compute_arrival_stats', False):
+            target_loc = data.get('target_location', [100, 100])
+            arrival_stats = ensemble.compute_arrival_time_statistics(
+                particle_trajectories,
+                tuple(target_loc),
+                threshold_distance=data.get('threshold_distance', 5.0)
+            )
+        
+        # Generate report
+        report = ensemble.generate_ensemble_report(statistics, arrival_stats)
+        
+        # Store results
+        sim_state['ensemble_results'] = {
+            'statistics': {k: v.tolist() if isinstance(v, np.ndarray) else v 
+                          for k, v in statistics.items()},
+            'arrival_stats': arrival_stats,
+            'n_members': len(configs)
+        }
+        
+        return jsonify({
+            'success': True,
+            'n_members': len(configs),
+            'n_steps': n_steps,
+            'statistics': {
+                'mean_max': float(np.max(statistics['mean'])),
+                'std_max': float(np.max(statistics['std'])),
+                'spread': float(np.max(statistics['max']) - np.min(statistics['min']))
+            },
+            'arrival_stats': arrival_stats,
+            'report': report
+        })
+    
+    @app.route('/api/ensemble/statistics', methods=['GET'])
+    def get_ensemble_statistics():
+        """Get ensemble statistics from last run"""
+        if 'ensemble_results' not in sim_state:
+            return jsonify({
+                'success': False,
+                'error': 'No ensemble results available. Run ensemble first.'
+            }), 400
+        
+        return jsonify({
+            'success': True,
+            'results': sim_state['ensemble_results']
+        })
+

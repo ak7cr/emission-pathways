@@ -2,9 +2,10 @@ from flask import Flask, render_template
 from wind_api import WindDataFetcher
 
 # Import modular components
+import simulation_state
 from simulation_state import (
     sim_state, emission_data, wind_data_cache, wind_interpolators,
-    update_mass_per_particle, x, y, nx, ny, xmin, xmax, ymin, ymax, KM_TO_M
+    update_mass_per_particle, KM_TO_M
 )
 from particle_physics import initialize_particles, advect, concentration_field
 from wind_field import get_wind_at_particles, load_wind_data, create_sample_wind_data
@@ -17,6 +18,7 @@ wind_fetcher = WindDataFetcher()
 # Wrapper functions to integrate with API routes
 def advect_wrapper(sim_state_dict, t):
     """Wrapper for advect function to work with sim_state dictionary"""
+    # Access domain values dynamically from simulation_state module
     return advect(
         sim_state_dict['particles'],
         sim_state_dict['particle_active'],
@@ -31,7 +33,10 @@ def advect_wrapper(sim_state_dict, t):
         sim_state_dict['mixing_height'],
         sim_state_dict.get('enable_decay', False),
         sim_state_dict.get('decay_rate', 0.0),
-        x, y, nx, ny, xmin, xmax, ymin, ymax,
+        simulation_state.x, simulation_state.y, 
+        simulation_state.nx, simulation_state.ny, 
+        simulation_state.xmin, simulation_state.xmax, 
+        simulation_state.ymin, simulation_state.ymax,
         wind_data_cache,
         get_wind_at_particles,
         KM_TO_M,
@@ -40,17 +45,21 @@ def advect_wrapper(sim_state_dict, t):
 
 def concentration_field_wrapper(sim_state_dict):
     """Wrapper for concentration_field function"""
+    # Access domain values dynamically from simulation_state module
     return concentration_field(
         sim_state_dict['particles'],
         sim_state_dict['particle_active'],
         sim_state_dict['mass_per_particle'],
         sim_state_dict['cell_area'],
         sim_state_dict['mixing_height'],
-        nx, ny, xmin, xmax, ymin, ymax
+        simulation_state.nx, simulation_state.ny, 
+        simulation_state.xmin, simulation_state.xmax, 
+        simulation_state.ymin, simulation_state.ymax
     )
 
 def generate_frame_wrapper(sim_state_dict, t):
     """Wrapper for generate_frame function"""
+    # Access domain values dynamically from simulation_state module
     return generate_frame(
         sim_state_dict['particles'],
         sim_state_dict['particle_active'],
@@ -60,7 +69,10 @@ def generate_frame_wrapper(sim_state_dict, t):
         wind_data_cache,
         sim_state_dict.get('show_wind_vectors', True),
         sim_state_dict['hotspots'],
-        x, y, nx, ny, xmin, xmax, ymin, ymax
+        simulation_state.x, simulation_state.y, 
+        simulation_state.nx, simulation_state.ny, 
+        simulation_state.xmin, simulation_state.xmax, 
+        simulation_state.ymin, simulation_state.ymax
     )
 
 @app.route('/')

@@ -202,13 +202,14 @@ def create_sample_wind_data():
     """
     Create a sample wind data file for testing
     This generates synthetic wind data in the expected format
+    Updated for 50km x 50km domain (city-scale)
     """
     # Time array (0 to 100 hours)
     time = np.linspace(0, 100, 50)
     
-    # Spatial grid (matching domain approximately)
-    lon = np.linspace(0, 200, 40)
-    lat = np.linspace(0, 200, 40)
+    # Spatial grid (matching new 50km domain)
+    lon = np.linspace(0, 50, 40)
+    lat = np.linspace(0, 50, 40)
     
     # Create synthetic wind data with temporal and spatial variation
     nt, nlat, nlon = len(time), len(lat), len(lon)
@@ -218,11 +219,11 @@ def create_sample_wind_data():
     for i, t in enumerate(time):
         for j, la in enumerate(lat):
             for k, lo in enumerate(lon):
-                # Varying wind pattern
-                u_data[i, j, k] = 5.0 + 2.0 * np.sin(2*np.pi*(la/200.0 + t/100.0)) + \
-                                  1.0 * np.cos(2*np.pi*lo/200.0)
-                v_data[i, j, k] = 1.0 + 1.5 * np.cos(2*np.pi*(lo/200.0 - t/100.0)) + \
-                                  0.5 * np.sin(2*np.pi*la/200.0)
+                # Varying wind pattern (adjusted for 50km domain)
+                u_data[i, j, k] = 5.0 + 2.0 * np.sin(2*np.pi*(la/50.0 + t/100.0)) + \
+                                  1.0 * np.cos(2*np.pi*lo/50.0)
+                v_data[i, j, k] = 1.0 + 1.5 * np.cos(2*np.pi*(lo/50.0 - t/100.0)) + \
+                                  0.5 * np.sin(2*np.pi*la/50.0)
     
     # Save to npz file
     np.savez('wind_data.npz', 
@@ -232,4 +233,5 @@ def create_sample_wind_data():
              u=u_data, 
              v=v_data)
     
-    print("Sample wind data created: wind_data.npz")
+    print("Sample wind data created: wind_data.npz (50km x 50km domain)")
+

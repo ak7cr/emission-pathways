@@ -4,7 +4,9 @@ Simulation state management and configuration
 import numpy as np
 
 # Domain constants (in km for display, converted to meters for physics)
-xmin, xmax, ymin, ymax = 0.0, 200.0, 0.0, 200.0
+# Reduced from 200x200 to 50x50 km for more realistic city-scale simulation
+# This allows particles to reach targets within reasonable simulation times
+xmin, xmax, ymin, ymax = 0.0, 50.0, 0.0, 50.0
 nx, ny = 120, 120
 x = np.linspace(xmin, xmax, nx)
 y = np.linspace(ymin, ymax, ny)
@@ -22,7 +24,10 @@ def calculate_cell_area():
 
 # Global simulation state
 sim_state = {
-    'hotspots': [[40.0, 120.0], [60.0, 130.0], [30.0, 90.0]],
+    # Scaled hotspots for 50km x 50km domain (city-scale)
+    # Previously: [[40, 120], [60, 130], [30, 90]] in 200km domain
+    # Now: scaled to fit 50km domain - positioned in western part
+    'hotspots': [[10.0, 30.0], [15.0, 32.5], [7.5, 22.5]],
     'sigma_turb': 2.5,  # Increased turbulence for more visible diffusion
     'npph': 2500,
     'dt': 30.0,  # Increased timestep from 0.2 to 30 seconds for faster simulation

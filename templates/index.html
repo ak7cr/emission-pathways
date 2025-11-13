@@ -424,6 +424,27 @@
                 <div class="control-section">
                     <h3>⚙️ Parameters</h3>
                     
+                    <!-- Domain Scale Selector -->
+                    <div class="param-control" style="border: 2px solid #28a745; padding: 12px; border-radius: 8px; background: linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(34, 139, 34, 0.1)); margin-bottom: 15px;">
+                        <label style="font-weight: bold; color: #28a745;">
+                            🗺️ Simulation Scale: 
+                            <span class="param-value" id="domain-scale-name" style="color: #228b22; font-size: 1.1em;">City</span>
+                        </label>
+                        <select id="domain-scale" onchange="updateDomainScale(this.value)" 
+                                style="margin-top: 8px; width: 100%; padding: 8px; border: 2px solid #28a745; border-radius: 6px; font-size: 1em; background: var(--input-bg); color: var(--text-color); cursor: pointer;">
+                            <option value="block">🏘️ Block (5×5 km) - Neighborhood scale</option>
+                            <option value="neighborhood">🏙️ Neighborhood (10×10 km) - District scale</option>
+                            <option value="city" selected>🌆 City (50×50 km) - Metropolitan area</option>
+                            <option value="metro">🏢 Metro Region (100×100 km) - Large metro</option>
+                            <option value="regional">🗺️ Regional (200×200 km) - Multi-city region</option>
+                            <option value="state">🌍 State (500×500 km) - State/province level</option>
+                        </select>
+                        <div style="font-size: 0.85em; color: var(--label-color); margin-top: 8px; padding: 8px; background: rgba(40, 167, 69, 0.05); border-radius: 4px; border-left: 3px solid #28a745;">
+                            <strong>Current:</strong> <span id="domain-info">50×50 km, ~417m resolution</span><br>
+                            <strong>Hotspots:</strong> Scaled automatically for domain
+                        </div>
+                    </div>
+                    
                     <!-- Speed Multiplier -->
                     <div class="param-control" style="border: 2px solid #667eea; padding: 12px; border-radius: 8px; background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); margin-bottom: 15px;">
                         <label style="font-weight: bold; color: #667eea;">
@@ -815,6 +836,77 @@
             const slider = document.getElementById('speed-multiplier');
             slider.value = value;
             updateSpeedMultiplier(value);
+        }
+
+        async function updateDomainScale(scale) {
+            // Domain scale configurations
+            const scales = {
+                'block': {
+                    name: 'Block',
+                    size: 5,
+                    description: '5×5 km, ~42m resolution',
+                    hotspots: [[1.25, 2.5], [1.875, 3.125], [0.9375, 2.1875]]
+                },
+                'neighborhood': {
+                    name: 'Neighborhood',
+                    size: 10,
+                    description: '10×10 km, ~83m resolution',
+                    hotspots: [[2.5, 5.0], [3.75, 6.25], [1.875, 4.375]]
+                },
+                'city': {
+                    name: 'City',
+                    size: 50,
+                    description: '50×50 km, ~417m resolution',
+                    hotspots: [[10.0, 30.0], [15.0, 32.5], [7.5, 22.5]]
+                },
+                'metro': {
+                    name: 'Metro Region',
+                    size: 100,
+                    description: '100×100 km, ~833m resolution',
+                    hotspots: [[20.0, 60.0], [30.0, 65.0], [15.0, 45.0]]
+                },
+                'regional': {
+                    name: 'Regional',
+                    size: 200,
+                    description: '200×200 km, ~1.67km resolution',
+                    hotspots: [[40.0, 120.0], [60.0, 130.0], [30.0, 90.0]]
+                },
+                'state': {
+                    name: 'State',
+                    size: 500,
+                    description: '500×500 km, ~4.17km resolution',
+                    hotspots: [[100.0, 300.0], [150.0, 325.0], [75.0, 225.0]]
+                }
+            };
+
+            const config = scales[scale];
+            
+            // Update UI
+            document.getElementById('domain-scale-name').textContent = config.name;
+            document.getElementById('domain-info').textContent = config.description;
+            
+            try {
+                // Send to backend
+                const response = await fetch('/api/domain-scale', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        scale: scale,
+                        domain_size: config.size,
+                        hotspots: config.hotspots
+                    })
+                });
+                
+                if (response.ok) {
+                    console.log(`Domain scaled to: ${config.name} (${config.size}×${config.size} km)`);
+                    // Reset simulation to apply new domain
+                    await resetSimulation();
+                } else {
+                    console.error('Failed to update domain scale');
+                }
+            } catch (error) {
+                console.error('Error updating domain scale:', error);
+            }
         }
 
         function updateActualDt() {
