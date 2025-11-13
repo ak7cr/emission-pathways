@@ -137,7 +137,7 @@ def apply_loss_processes(p, particle_active, dt, enable_deposition, deposition_v
 def advect(p, particle_active, t, dt, sigma_turb, wind_type, wind_interpolators,
            boundary_type, enable_deposition, deposition_velocity, mixing_height,
            enable_decay, decay_rate, x, y, nx, ny, xmin, xmax, ymin, ymax,
-           wind_data_cache, get_wind_func, KM_TO_M, use_bilinear_interp):
+           wind_data_cache, get_wind_func, KM_TO_M, use_bilinear_interp, wind_speed_multiplier=1.0):
     """
     Advect particles with turbulent diffusion and apply loss processes
     
@@ -213,6 +213,10 @@ def advect(p, particle_active, t, dt, sigma_turb, wind_type, wind_interpolators,
     # Interpolate wind at particle positions (bilinear interpolation)
     u_p, v_p = get_wind_func(U, V, p[active, 0], p[active, 1], x, y, 
                              wind_interpolators, use_bilinear_interp)
+    
+    # Apply wind speed multiplier
+    u_p *= wind_speed_multiplier
+    v_p *= wind_speed_multiplier
     
     # Advection: convert wind (m/s) to displacement (km)
     dx_km = (u_p * dt) / KM_TO_M  # km

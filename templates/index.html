@@ -428,7 +428,7 @@
                     <div class="param-control" style="border: 2px solid #28a745; padding: 12px; border-radius: 8px; background: linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(34, 139, 34, 0.1)); margin-bottom: 15px;">
                         <label style="font-weight: bold; color: #28a745;">
                             🗺️ Simulation Scale: 
-                            <span class="param-value" id="domain-scale-name" style="color: #228b22; font-size: 1.1em;">City</span>
+                            <span class="param-value" id="domain-scale-name" style="color: var(--text-color); font-size: 1.1em; font-weight: bold;">City</span>
                         </label>
                         <select id="domain-scale" onchange="updateDomainScale(this.value)" 
                                 style="margin-top: 8px; width: 100%; padding: 8px; border: 2px solid #28a745; border-radius: 6px; font-size: 1em; background: var(--input-bg); color: var(--text-color); cursor: pointer;">
@@ -449,7 +449,7 @@
                     <div class="param-control" style="border: 2px solid #667eea; padding: 12px; border-radius: 8px; background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); margin-bottom: 15px;">
                         <label style="font-weight: bold; color: #667eea;">
                             🚀 Speed Multiplier: 
-                            <span class="param-value" id="speed-multiplier-val" style="color: #764ba2; font-size: 1.1em;">1.0x</span>
+                            <span class="param-value" id="speed-multiplier-val" style="color: var(--text-color); font-size: 1.1em; font-weight: bold;">1.0x</span>
                         </label>
                         <input type="range" id="speed-multiplier" min="0.1" max="10" step="0.1" value="1.0" 
                                oninput="updateSpeedMultiplier(this.value)"
@@ -475,6 +475,27 @@
                                oninput="updateParam('sigma_turb', this.value)">
                         <div style="font-size: 0.85em; color: #666; margin-top: 3px;">
                             Controls plume spreading (0.1 = tight, 10 = very dispersed)
+                        </div>
+                    </div>
+
+                    <!-- Wind Speed Multiplier -->
+                    <div class="param-control" style="border: 2px solid #ff6b6b; padding: 12px; border-radius: 8px; background: linear-gradient(135deg, rgba(255, 107, 107, 0.1), rgba(238, 82, 83, 0.1)); margin-bottom: 15px;">
+                        <label style="font-weight: bold; color: #ff6b6b;">
+                            💨 Wind Speed Multiplier: 
+                            <span class="param-value" id="wind-speed-multiplier-val" style="color: var(--text-color); font-size: 1.1em; font-weight: bold;">1.0x</span>
+                        </label>
+                        <input type="range" id="wind-speed-multiplier" min="0.1" max="5.0" step="0.1" value="1.0" 
+                               oninput="updateWindSpeedMultiplier(this.value)"
+                               style="margin-top: 8px;">
+                        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 8px;">
+                            <button onclick="setWindSpeed(0.1)" style="padding: 4px; font-size: 0.8em; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">0.1x</button>
+                            <button onclick="setWindSpeed(0.5)" style="padding: 4px; font-size: 0.8em; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">0.5x</button>
+                            <button onclick="setWindSpeed(1.0)" style="padding: 4px; font-size: 0.8em; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">1.0x</button>
+                            <button onclick="setWindSpeed(2.0)" style="padding: 4px; font-size: 0.8em; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">2.0x</button>
+                            <button onclick="setWindSpeed(5.0)" style="padding: 4px; font-size: 0.8em; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">5.0x</button>
+                        </div>
+                        <div style="font-size: 0.85em; color: var(--label-color); margin-top: 8px; padding: 8px; background: rgba(255, 107, 107, 0.05); border-radius: 4px; border-left: 3px solid #ff6b6b;">
+                            Controls wind speed: 0.1x = Calm, 1.0x = Normal, 5.0x = Storm
                         </div>
                     </div>
 
@@ -838,6 +859,26 @@
             updateSpeedMultiplier(value);
         }
 
+        async function updateWindSpeedMultiplier(value) {
+            const multiplier = parseFloat(value);
+            document.getElementById('wind-speed-multiplier-val').textContent = multiplier.toFixed(1) + 'x';
+            
+            // Send to backend
+            await fetch('/api/params', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({wind_speed_multiplier: multiplier})
+            });
+            
+            console.log(`Wind speed multiplier set to: ${multiplier.toFixed(1)}x`);
+        }
+
+        function setWindSpeed(value) {
+            const slider = document.getElementById('wind-speed-multiplier');
+            slider.value = value;
+            updateWindSpeedMultiplier(value);
+        }
+
         async function updateDomainScale(scale) {
             // Domain scale configurations
             const scales = {
@@ -898,7 +939,16 @@
                 });
                 
                 if (response.ok) {
+                    const result = await response.json();
                     console.log(`Domain scaled to: ${config.name} (${config.size}×${config.size} km)`);
+                    
+                    // Update sigma_turb UI if it was auto-scaled
+                    if (result.sigma_turb !== undefined) {
+                        document.getElementById('sigma-val').textContent = result.sigma_turb;
+                        document.getElementById('sigma-turb').value = result.sigma_turb;
+                        console.log(`Turbulent diffusion auto-scaled to: ${result.sigma_turb} m/s`);
+                    }
+                    
                     // Reset simulation to apply new domain
                     await resetSimulation();
                 } else {

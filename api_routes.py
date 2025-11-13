@@ -215,6 +215,12 @@ def register_routes(app, sim_state, emission_data, wind_data_cache,
             wind_interpolators['V_interp'] = None
             # Don't reset particles, but interpolation method will change
         
+        if 'wind_speed_multiplier' in data:
+            old_val = sim_state.get('wind_speed_multiplier', 1.0)
+            sim_state['wind_speed_multiplier'] = float(data['wind_speed_multiplier'])
+            updated_params.append(f'wind_speed_multiplier: {old_val} → {sim_state["wind_speed_multiplier"]}')
+            # Don't reset particles - wind speed change is applied on-the-fly
+        
         if reset_needed:
             sim_state['particles'] = None
             sim_state['current_frame'] = 0
@@ -249,6 +255,15 @@ def register_routes(app, sim_state, emission_data, wind_data_cache,
         # Update hotspots
         sim_state['hotspots'] = hotspots
         
+        # Scale sigma_turb based on domain size
+        # Base value: 2.5 m/s for 50km domain (city scale)
+        # Scale proportionally: smaller domains need less diffusion, larger need more
+        base_domain = 50.0  # km (reference city scale)
+        base_sigma = 2.5    # m/s
+        scale_factor = domain_size / base_domain
+        new_sigma_turb = base_sigma * np.sqrt(scale_factor)  # sqrt scaling for diffusion
+        sim_state['sigma_turb'] = round(new_sigma_turb, 2)
+        
         # Recalculate cell area
         sim_state['cell_area'] = simstate.calculate_cell_area()
         
@@ -271,6 +286,7 @@ def register_routes(app, sim_state, emission_data, wind_data_cache,
             'domain_size': domain_size,
             'resolution_m': resolution_m,
             'hotspots': hotspots,
+            'sigma_turb': sim_state['sigma_turb'],
             'message': f'Domain scaled to {scale_name}: {domain_size}×{domain_size} km (~{resolution_m:.0f}m resolution)'
         })
 

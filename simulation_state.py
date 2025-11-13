@@ -51,6 +51,8 @@ sim_state = {
     # Performance optimization
     'super_particle_ratio': 1,  # Each computational particle represents this many physical particles
     'use_bilinear_interp': True,  # Use bilinear interpolation for wind (more accurate)
+    # Wind speed control
+    'wind_speed_multiplier': 1.0,  # Multiplier for wind speed (0.1 to 5.0), allows testing different wind scenarios
 }
 
 # Wind field interpolators (cached for performance)

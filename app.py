@@ -40,7 +40,8 @@ def advect_wrapper(sim_state_dict, t):
         wind_data_cache,
         get_wind_at_particles,
         KM_TO_M,
-        sim_state_dict.get('use_bilinear_interp', True)
+        sim_state_dict.get('use_bilinear_interp', True),
+        sim_state_dict.get('wind_speed_multiplier', 1.0)
     )
 
 def concentration_field_wrapper(sim_state_dict):
