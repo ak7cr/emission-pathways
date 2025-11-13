@@ -65,17 +65,22 @@ def apply_boundary_conditions(p, particle_active, boundary_type, xmin, xmax, ymi
         
     elif boundary_type == 'reflecting':
         # Reflect particles at boundaries
-        # X boundaries
+        # Get active indices
+        active_indices = np.where(active)[0]
+        
+        # Check boundaries for active particles
         outside_xmin = p[active, 0] < xmin
         outside_xmax = p[active, 0] > xmax
-        p[active & outside_xmin, 0] = 2 * xmin - p[active & outside_xmin, 0]
-        p[active & outside_xmax, 0] = 2 * xmax - p[active & outside_xmax, 0]
-        
-        # Y boundaries
         outside_ymin = p[active, 1] < ymin
         outside_ymax = p[active, 1] > ymax
-        p[active & outside_ymin, 1] = 2 * ymin - p[active & outside_ymin, 1]
-        p[active & outside_ymax, 1] = 2 * ymax - p[active & outside_ymax, 1]
+        
+        # Reflect X boundaries
+        p[active_indices[outside_xmin], 0] = 2 * xmin - p[active_indices[outside_xmin], 0]
+        p[active_indices[outside_xmax], 0] = 2 * xmax - p[active_indices[outside_xmax], 0]
+        
+        # Reflect Y boundaries
+        p[active_indices[outside_ymin], 1] = 2 * ymin - p[active_indices[outside_ymin], 1]
+        p[active_indices[outside_ymax], 1] = 2 * ymax - p[active_indices[outside_ymax], 1]
         
     elif boundary_type == 'periodic':
         # Periodic boundaries (wrap around)

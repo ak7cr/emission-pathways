@@ -23,10 +23,18 @@ def synthetic_wind_field(t, x, y, nx, ny):
     U, V : ndarray, shape (ny, nx)
         Wind components in m/s
     """
-    uu = 3.0 + 1.0 * np.sin(2*np.pi*(y/200.0 + 0.06*t))
-    vv = 0.3 * np.cos(2*np.pi*(x/200.0 - 0.03*t))
-    U = np.tile(uu, (nx,1)).T  # m/s
-    V = np.tile(vv, (ny,1))  # m/s
+    # Create wind components that vary in space and time
+    # Increased wind speeds for more visible particle transport
+    # uu varies with y (north-south wind component) - dominant eastward wind
+    # vv varies with x (east-west wind component) - weaker northward component
+    uu = 12.0 + 4.0 * np.sin(2*np.pi*(y/200.0 + 0.06*t))  # Shape: (ny,) - Increased from 3-4 to 8-16 m/s
+    vv = 3.0 + 2.0 * np.cos(2*np.pi*(x/200.0 - 0.03*t))   # Shape: (nx,) - Increased from ~0.3 to 1-5 m/s
+    
+    # Tile to create 2D fields
+    # U should have shape (ny, nx) - each row has the same u value (depends on y)
+    # V should have shape (ny, nx) - each column has the same v value (depends on x)
+    U = np.tile(uu.reshape(-1, 1), (1, nx))  # m/s, shape (ny, nx)
+    V = np.tile(vv.reshape(1, -1), (ny, 1))  # m/s, shape (ny, nx)
     return U, V
 
 def get_wind_at_particles(U, V, particle_x, particle_y, x, y, wind_interpolators, use_bilinear=True):

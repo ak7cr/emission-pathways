@@ -52,26 +52,44 @@ def register_routes(app, sim_state, emission_data, wind_data_cache,
         
         elif request.method == 'POST':
             data = request.json
+            reset_needed = False
             
             if 'boundary_type' in data:
                 if data['boundary_type'] in ['absorbing', 'reflecting', 'periodic']:
                     sim_state['boundary_type'] = data['boundary_type']
+                    # Reset simulation to apply new boundary conditions
+                    reset_needed = True
             
             if 'enable_deposition' in data:
                 sim_state['enable_deposition'] = bool(data['enable_deposition'])
+                # Deposition affects particles over time, no immediate reset needed
             
             if 'deposition_velocity' in data:
                 sim_state['deposition_velocity'] = float(data['deposition_velocity'])
+                # Deposition affects particles over time, no immediate reset needed
             
             if 'enable_decay' in data:
                 sim_state['enable_decay'] = bool(data['enable_decay'])
+                # Decay affects particles over time, no immediate reset needed
             
             if 'decay_rate' in data:
                 sim_state['decay_rate'] = float(data['decay_rate'])
+                # Decay affects particles over time, no immediate reset needed
+            
+            if 'mixing_height' in data:
+                sim_state['mixing_height'] = float(data['mixing_height'])
+                # Recalculate mass per particle and reset
+                update_mass_per_particle()
+                reset_needed = True
+            
+            if reset_needed:
+                sim_state['particles'] = None
+                sim_state['current_frame'] = 0
             
             return jsonify({
                 'success': True,
-                'message': 'Physics parameters updated'
+                'message': 'Physics parameters updated',
+                'reset': reset_needed
             })
 
     @app.route('/api/performance', methods=['GET'])
@@ -112,10 +130,23 @@ def register_routes(app, sim_state, emission_data, wind_data_cache,
     def update_hotspots():
         """Add, remove, or move hotspots"""
         data = request.json
+        old_hotspot_count = len(sim_state['hotspots'])
         sim_state['hotspots'] = data['hotspots']
-        sim_state['particles'] = None  # Reset particles
+        new_hotspot_count = len(sim_state['hotspots'])
+        
+        # Reset particles
+        sim_state['particles'] = None
         sim_state['current_frame'] = 0
-        return jsonify({'success': True, 'hotspots': sim_state['hotspots']})
+        
+        # If hotspot count changed, recalculate mass per particle
+        if old_hotspot_count != new_hotspot_count:
+            update_mass_per_particle()
+        
+        return jsonify({
+            'success': True, 
+            'hotspots': sim_state['hotspots'],
+            'message': f'Hotspots updated: {new_hotspot_count} hotspots'
+        })
 
     @app.route('/api/params', methods=['POST'])
     def update_params():
@@ -124,21 +155,32 @@ def register_routes(app, sim_state, emission_data, wind_data_cache,
         
         data = request.json
         reset_needed = False
+        updated_params = []
         
         if 'sigma_turb' in data:
+            old_val = sim_state['sigma_turb']
             sim_state['sigma_turb'] = float(data['sigma_turb'])
+            updated_params.append(f'sigma_turb: {old_val} → {sim_state["sigma_turb"]}')
             reset_needed = True
             
         if 'npph' in data:
+            old_val = sim_state['npph']
             sim_state['npph'] = int(data['npph'])
+            updated_params.append(f'npph: {old_val} → {sim_state["npph"]}')
+            # Recalculate mass per particle when particle count changes
+            update_mass_per_particle()
             reset_needed = True
             
         if 'dt' in data:
+            old_val = sim_state['dt']
             sim_state['dt'] = float(data['dt'])
+            updated_params.append(f'dt: {old_val} → {sim_state["dt"]}')
             reset_needed = True
             
         if 'wind_type' in data:
+            old_val = sim_state['wind_type']
             sim_state['wind_type'] = data['wind_type']
+            updated_params.append(f'wind_type: {old_val} → {sim_state["wind_type"]}')
             # Attempt to load wind data if switching to real
             if data['wind_type'] == 'real' and not wind_data_cache['loaded']:
                 load_wind_data_func('wind_data.npz', wind_data_cache)
@@ -146,27 +188,42 @@ def register_routes(app, sim_state, emission_data, wind_data_cache,
             
         if 'show_wind_vectors' in data:
             sim_state['show_wind_vectors'] = bool(data['show_wind_vectors'])
-            # Don't reset particles for this change
-            return jsonify({'success': True})
+            updated_params.append(f'show_wind_vectors: {sim_state["show_wind_vectors"]}')
+            # Don't reset particles for this change (visual only)
+            return jsonify({
+                'success': True,
+                'updated': updated_params,
+                'reset': False
+            })
         
         if 'super_particle_ratio' in data:
             ratio = int(data['super_particle_ratio'])
             if ratio >= 1:
+                old_val = sim_state.get('super_particle_ratio', 1)
                 sim_state['super_particle_ratio'] = ratio
+                updated_params.append(f'super_particle_ratio: {old_val} → {ratio}')
                 update_mass_per_particle()
                 reset_needed = True
         
         if 'use_bilinear_interp' in data:
+            old_val = sim_state.get('use_bilinear_interp', True)
             sim_state['use_bilinear_interp'] = bool(data['use_bilinear_interp'])
-            # Clear cached interpolators
+            updated_params.append(f'use_bilinear_interp: {old_val} → {sim_state["use_bilinear_interp"]}')
+            # Clear cached interpolators to force recalculation
             wind_interpolators['U_interp'] = None
             wind_interpolators['V_interp'] = None
+            # Don't reset particles, but interpolation method will change
         
         if reset_needed:
             sim_state['particles'] = None
             sim_state['current_frame'] = 0
         
-        return jsonify({'success': True})
+        return jsonify({
+            'success': True,
+            'updated': updated_params,
+            'reset': reset_needed,
+            'message': f'Updated {len(updated_params)} parameter(s)' + (' and reset simulation' if reset_needed else '')
+        })
 
     @app.route('/api/reset', methods=['POST'])
     def reset_simulation():

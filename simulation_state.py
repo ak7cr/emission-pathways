@@ -23,9 +23,9 @@ def calculate_cell_area():
 # Global simulation state
 sim_state = {
     'hotspots': [[40.0, 120.0], [60.0, 130.0], [30.0, 90.0]],
-    'sigma_turb': 0.9,
+    'sigma_turb': 2.5,  # Increased turbulence for more visible diffusion
     'npph': 2500,
-    'dt': 0.2,
+    'dt': 30.0,  # Increased timestep from 0.2 to 30 seconds for faster simulation
     'current_frame': 0,
     'particles': None,
     'wind_type': 'synthetic',  # or 'real' when ERA5/GFS data is available
