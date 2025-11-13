@@ -11,28 +11,97 @@
             box-sizing: border-box;
         }
 
+        :root {
+            --bg-gradient-start: #1e3c72;
+            --bg-gradient-end: #2a5298;
+            --container-bg: white;
+            --text-color: #333;
+            --header-gradient-start: #667eea;
+            --header-gradient-end: #764ba2;
+            --controls-bg: #f8f9fa;
+            --control-border: #e0e0e0;
+            --input-bg: white;
+            --input-border: #ddd;
+            --hotspot-item-bg: #f0f0f0;
+            --status-bg: #e7f3ff;
+            --status-border: #667eea;
+            --canvas-bg: #f8f9fa;
+            --label-color: #555;
+        }
+
+        body.dark-mode {
+            --bg-gradient-start: #0f1419;
+            --bg-gradient-end: #1a1f2e;
+            --container-bg: #1e2530;
+            --text-color: #e0e0e0;
+            --header-gradient-start: #4a5568;
+            --header-gradient-end: #2d3748;
+            --controls-bg: #2a3441;
+            --control-border: #3a4556;
+            --input-bg: #1a202c;
+            --input-border: #4a5568;
+            --hotspot-item-bg: #374151;
+            --status-bg: #1e3a5f;
+            --status-border: #4a90e2;
+            --canvas-bg: #1a202c;
+            --label-color: #cbd5e0;
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: #333;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            color: var(--text-color);
             min-height: 100vh;
             padding: 20px;
+            transition: background 0.3s ease, color 0.3s ease;
         }
 
         .container {
             max-width: 1600px;
             margin: 0 auto;
-            background: white;
+            background: var(--container-bg);
             border-radius: 12px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
             overflow: hidden;
+            transition: background 0.3s ease;
+        }
+
+        .dark-mode-toggle {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: var(--container-bg);
+            border: 2px solid var(--input-border);
+            border-radius: 50px;
+            padding: 8px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            font-size: 1.2em;
+        }
+
+        .dark-mode-toggle:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        .dark-mode-toggle span {
+            font-size: 0.85em;
+            font-weight: 600;
+            color: var(--text-color);
         }
 
         header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--header-gradient-start) 0%, var(--header-gradient-end) 100%);
             color: white;
             padding: 30px;
             text-align: center;
+            position: relative;
+            transition: background 0.3s ease;
         }
 
         h1 {
@@ -53,16 +122,18 @@
         }
 
         .controls {
-            background: #f8f9fa;
+            background: var(--controls-bg);
             padding: 20px;
             border-radius: 8px;
             height: fit-content;
+            transition: background 0.3s ease;
         }
 
         .control-section {
             margin-bottom: 25px;
             padding-bottom: 20px;
-            border-bottom: 2px solid #e0e0e0;
+            border-bottom: 2px solid var(--control-border);
+            transition: border-color 0.3s ease;
         }
 
         .control-section:last-child {
@@ -83,7 +154,8 @@
             display: block;
             margin-bottom: 5px;
             font-weight: 600;
-            color: #555;
+            color: var(--label-color);
+            transition: color 0.3s ease;
         }
 
         .param-control input[type="range"],
@@ -91,9 +163,12 @@
         .param-control select {
             width: 100%;
             padding: 8px;
-            border: 1px solid #ddd;
+            border: 1px solid var(--input-border);
             border-radius: 4px;
             font-size: 14px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            transition: all 0.3s ease;
         }
 
         .param-control input[type="range"] {
@@ -151,22 +226,28 @@
         }
 
         .visualization {
-            background: white;
+            background: var(--container-bg);
             border-radius: 8px;
             padding: 20px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: background 0.3s ease;
         }
 
         #canvas-container {
             width: 100%;
             min-height: 600px;
-            background: #f8f9fa;
+            background: var(--canvas-bg);
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             position: relative;
             overflow: hidden;
+            transition: background 0.3s ease;
+        }
+
+        #canvas-container p {
+            color: var(--label-color);
         }
 
         #canvas-container img {
@@ -176,12 +257,23 @@
         }
 
         .hotspot-list {
+            min-height: 100px;
             max-height: 200px;
             overflow-y: auto;
-            background: white;
-            border: 1px solid #ddd;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
             border-radius: 4px;
             padding: 10px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .hotspot-list:empty::before {
+            content: "No hotspots yet. Add one below.";
+            color: var(--label-color);
+            opacity: 0.6;
+            font-size: 0.9em;
+            font-style: italic;
         }
 
         .hotspot-item {
@@ -190,13 +282,15 @@
             align-items: center;
             padding: 8px;
             margin-bottom: 5px;
-            background: #f0f0f0;
+            background: var(--hotspot-item-bg);
             border-radius: 4px;
+            transition: background 0.3s ease;
         }
 
         .hotspot-coords {
             font-family: monospace;
             font-size: 0.9em;
+            color: var(--text-color);
         }
 
         .remove-btn {
@@ -214,47 +308,74 @@
         }
 
         .add-hotspot {
-            display: grid;
-            grid-template-columns: 1fr 1fr auto;
-            gap: 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
             margin-top: 10px;
         }
 
         .add-hotspot input {
-            padding: 6px;
-            border: 1px solid #ddd;
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--input-border);
             border-radius: 4px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .add-hotspot input::placeholder {
+            color: var(--label-color);
+            opacity: 0.6;
         }
 
         .add-btn {
+            width: 100%;
             background: #28a745;
             color: white;
             border: none;
-            padding: 6px 12px;
+            padding: 8px 16px;
             border-radius: 4px;
             cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
         .add-btn:hover {
             background: #218838;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .add-btn:active {
+            transform: translateY(0);
         }
 
         .status {
-            background: #e7f3ff;
-            border-left: 4px solid #667eea;
+            background: var(--status-bg);
+            border-left: 4px solid var(--status-border);
             padding: 10px;
             margin-bottom: 15px;
             border-radius: 4px;
+            transition: all 0.3s ease;
         }
 
         .status-item {
             margin: 5px 0;
             font-size: 0.95em;
+            color: var(--text-color);
         }
 
         .loading {
             color: #667eea;
             font-style: italic;
+        }
+
+        body.dark-mode .loading {
+            color: #8b9cff;
         }
 
         @media (max-width: 1024px) {
@@ -265,6 +386,12 @@
     </style>
 </head>
 <body>
+    <!-- Dark Mode Toggle -->
+    <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">
+        <span id="dark-mode-icon">🌙</span>
+        <span id="dark-mode-text">Dark</span>
+    </button>
+
     <div class="container">
         <header>
             <h1>🌊 Lagrangian Transport Simulator</h1>
@@ -355,22 +482,22 @@
                         🌍 Fetch from ERA5 API
                     </button>
                     
-                    <div id="era5-panel" style="display: none; margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 4px;">
+                    <div id="era5-panel" style="display: none; margin: 10px 0; padding: 10px; background: var(--hotspot-item-bg); border: 1px solid var(--input-border); border-radius: 4px;">
                         <div style="margin-bottom: 8px;">
-                            <small style="color: #666;">✓ API Key configured (credentials auto-loaded)</small>
+                            <small style="color: var(--label-color);">✓ API Key configured (credentials auto-loaded)</small>
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 8px;">
-                            <input type="date" id="era5-start-date" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-                            <input type="date" id="era5-end-date" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                            <input type="date" id="era5-start-date" style="padding: 6px; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
+                            <input type="date" id="era5-end-date" style="padding: 6px; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
                         </div>
-                        <div style="font-size: 0.85em; margin-bottom: 8px; color: #666;">
-                            Bounding Box (N, W, S, E):
+                        <div style="font-size: 0.85em; margin-bottom: 8px; color: var(--label-color);">
+                            Bounding Box:
                         </div>
-                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin-bottom: 8px;">
-                            <input type="number" id="bbox-north" value="45" step="0.1" style="padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
-                            <input type="number" id="bbox-west" value="-10" step="0.1" style="padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
-                            <input type="number" id="bbox-south" value="35" step="0.1" style="padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
-                            <input type="number" id="bbox-east" value="10" step="0.1" style="padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                        <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;">
+                            <input type="number" id="bbox-north" value="45" step="0.1" placeholder="North (Latitude)" style="padding: 8px; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
+                            <input type="number" id="bbox-west" value="-10" step="0.1" placeholder="West (Longitude)" style="padding: 8px; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
+                            <input type="number" id="bbox-south" value="35" step="0.1" placeholder="South (Latitude)" style="padding: 8px; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
+                            <input type="number" id="bbox-east" value="10" step="0.1" placeholder="East (Longitude)" style="padding: 8px; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
                         </div>
                         <button class="button" onclick="fetchERA5Data()" style="background: #28a745;">Fetch ERA5 Data</button>
                     </div>
@@ -379,20 +506,20 @@
                         🛰️ Fetch from GFS API
                     </button>
                     
-                    <div id="gfs-panel" style="display: none; margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 4px;">
+                    <div id="gfs-panel" style="display: none; margin: 10px 0; padding: 10px; background: var(--hotspot-item-bg); border: 1px solid var(--input-border); border-radius: 4px;">
                         <div style="margin-bottom: 8px;">
-                            <label style="font-size: 0.9em;">Forecast Hour: <span id="forecast-hour-val">0</span></label>
+                            <label style="font-size: 0.9em; color: var(--text-color);">Forecast Hour: <span id="forecast-hour-val">0</span></label>
                             <input type="range" id="forecast-hour" min="0" max="120" step="6" value="0" 
                                    style="width: 100%;" oninput="document.getElementById('forecast-hour-val').textContent = this.value">
                         </div>
-                        <div style="font-size: 0.85em; margin-bottom: 8px; color: #666;">
-                            Bounding Box (N, W, S, E):
+                        <div style="font-size: 0.85em; margin-bottom: 8px; color: var(--label-color);">
+                            Bounding Box:
                         </div>
-                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin-bottom: 8px;">
-                            <input type="number" id="gfs-bbox-north" value="45" step="0.1" style="padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
-                            <input type="number" id="gfs-bbox-west" value="-10" step="0.1" style="padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
-                            <input type="number" id="gfs-bbox-south" value="35" step="0.1" style="padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
-                            <input type="number" id="gfs-bbox-east" value="10" step="0.1" style="padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                        <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;">
+                            <input type="number" id="gfs-bbox-north" value="45" step="0.1" placeholder="North (Latitude)" style="padding: 8px; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
+                            <input type="number" id="gfs-bbox-west" value="-10" step="0.1" placeholder="West (Longitude)" style="padding: 8px; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
+                            <input type="number" id="gfs-bbox-south" value="35" step="0.1" placeholder="South (Latitude)" style="padding: 8px; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
+                            <input type="number" id="gfs-bbox-east" value="10" step="0.1" placeholder="East (Longitude)" style="padding: 8px; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
                         </div>
                         <button class="button" onclick="fetchGFSData()" style="background: #28a745;">Fetch GFS Data</button>
                     </div>
@@ -433,8 +560,39 @@
         let isPlaying = false;
         let playInterval = null;
 
+        // Dark Mode Functions
+        function toggleDarkMode() {
+            const body = document.body;
+            const isDark = body.classList.toggle('dark-mode');
+            
+            // Update icon and text
+            const icon = document.getElementById('dark-mode-icon');
+            const text = document.getElementById('dark-mode-text');
+            
+            if (isDark) {
+                icon.textContent = '☀️';
+                text.textContent = 'Light';
+            } else {
+                icon.textContent = '🌙';
+                text.textContent = 'Dark';
+            }
+            
+            // Save preference to localStorage
+            localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
+        }
+
+        function loadDarkModePreference() {
+            const darkMode = localStorage.getItem('darkMode');
+            if (darkMode === 'enabled') {
+                document.body.classList.add('dark-mode');
+                document.getElementById('dark-mode-icon').textContent = '☀️';
+                document.getElementById('dark-mode-text').textContent = 'Light';
+            }
+        }
+
         // Initialize
         window.onload = function() {
+            loadDarkModePreference();
             loadState();
             renderHotspots();
             checkWindStatus();
@@ -473,31 +631,40 @@
         }
 
         async function togglePlayPause() {
-            const response = await fetch('/api/play', {method: 'POST'});
-            const data = await response.json();
-            
-            if (data.success) {
-                isPlaying = data.is_playing;
-                updatePlayButton();
+            try {
+                const response = await fetch('/api/play', {method: 'POST'});
+                const data = await response.json();
                 
-                if (isPlaying) {
-                    startAutoPlay();
-                } else {
-                    stopAutoPlay();
+                if (data.success) {
+                    isPlaying = data.is_playing;
+                    updatePlayButton();
+                    
+                    if (isPlaying) {
+                        startAutoPlay();
+                    } else {
+                        stopAutoPlay();
+                    }
                 }
+            } catch (error) {
+                console.error('Error toggling play/pause:', error);
             }
         }
 
         function startAutoPlay() {
             if (playInterval) return;
             
+            // Use a slightly longer interval to avoid overwhelming the server
             playInterval = setInterval(async () => {
                 if (!isPlaying) {
                     stopAutoPlay();
                     return;
                 }
-                await stepSimulation();
-            }, 100); // Adjust interval as needed
+                
+                // Only step if not currently running
+                if (!isRunning) {
+                    await stepSimulation();
+                }
+            }, 500); // 500ms interval for smoother playback
         }
 
         function stopAutoPlay() {
@@ -684,7 +851,6 @@
         }
 
         async function fetchERA5Data() {
-            const apiKey = document.getElementById('cds-api-key').value;
             const startDate = document.getElementById('era5-start-date').value;
             const endDate = document.getElementById('era5-end-date').value;
             const bbox = [
@@ -694,8 +860,8 @@
                 parseFloat(document.getElementById('bbox-east').value)
             ];
 
-            if (!apiKey) {
-                alert('Please enter your CDS API key');
+            if (!startDate || !endDate) {
+                alert('Please select both start and end dates');
                 return;
             }
 
@@ -703,13 +869,7 @@
             statusSpan.textContent = '⏳ Fetching ERA5 data from CDS (this may take a few minutes)...';
             statusSpan.style.color = '#ffc107';
 
-            // Setup credentials
-            await fetch('/api/wind/setup-creds', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({api_key: apiKey})
-            });
-
+            // Note: API key should already be configured in .cdsapirc file
             // Fetch data
             const response = await fetch('/api/wind/fetch-era5', {
                 method: 'POST',
@@ -770,17 +930,24 @@
 
         async function stepSimulation() {
             if (isRunning) return;
+            isRunning = true;
             
-            const container = document.getElementById('canvas-container');
-            container.innerHTML = '<p class="loading">Computing...</p>';
-            
-            const response = await fetch('/api/step', {method: 'POST'});
-            const data = await response.json();
-            
-            if (data.success) {
-                container.innerHTML = `<img src="data:image/png;base64,${data.image}" alt="Simulation frame">`;
-                document.getElementById('frame-num').textContent = data.frame;
-                document.getElementById('time-val').textContent = data.time.toFixed(1);
+            try {
+                const container = document.getElementById('canvas-container');
+                container.innerHTML = '<p class="loading">Computing...</p>';
+                
+                const response = await fetch('/api/step', {method: 'POST'});
+                const data = await response.json();
+                
+                if (data.success) {
+                    container.innerHTML = `<img src="data:image/png;base64,${data.image}" alt="Simulation frame">`;
+                    document.getElementById('frame-num').textContent = data.frame;
+                    document.getElementById('time-val').textContent = data.time.toFixed(1);
+                }
+            } catch (error) {
+                console.error('Error stepping simulation:', error);
+            } finally {
+                isRunning = false;
             }
         }
 
