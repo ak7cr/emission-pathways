@@ -383,6 +383,96 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* Tooltip styles for help icons */
+        .help-icon {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            line-height: 18px;
+            text-align: center;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: help;
+            margin-left: 6px;
+            position: relative;
+            vertical-align: middle;
+            transition: all 0.3s ease;
+        }
+
+        .help-icon:hover {
+            background: #5568d3;
+            transform: scale(1.1);
+        }
+
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 280px;
+            background-color: #2c3e50;
+            color: #fff;
+            text-align: left;
+            border-radius: 8px;
+            padding: 12px;
+            position: absolute;
+            z-index: 1000;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -140px;
+            opacity: 0;
+            transition: opacity 0.3s, visibility 0.3s;
+            font-size: 0.9em;
+            line-height: 1.5;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .tooltip .tooltiptext::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #2c3e50 transparent transparent transparent;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .tooltip .tooltiptext strong {
+            color: #667eea;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 1.05em;
+        }
+
+        .tooltip .tooltiptext .example {
+            display: block;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            color: #a8d5ff;
+            font-style: italic;
+        }
+
+        body.dark-mode .tooltip .tooltiptext {
+            background-color: #1a1a2e;
+            border: 1px solid #667eea;
+        }
+
+        body.dark-mode .tooltip .tooltiptext::after {
+            border-color: #1a1a2e transparent transparent transparent;
+        }
     </style>
 </head>
 <body>
@@ -429,6 +519,17 @@
                         <label style="font-weight: bold; color: #28a745;">
                             🗺️ Simulation Scale: 
                             <span class="param-value" id="domain-scale-name" style="color: var(--text-color); font-size: 1.1em; font-weight: bold;">City</span>
+                            <span class="tooltip">
+                                <span class="help-icon">?</span>
+                                <span class="tooltiptext">
+                                    <strong>Simulation Domain Size</strong>
+                                    Controls the total area covered by the simulation. Automatically scales grid resolution, hotspot positions, and turbulent diffusion.
+                                    <span class="example">💡 Examples:<br>
+                                    • Block (5km): Street-level pollution<br>
+                                    • City (50km): Urban air quality<br>
+                                    • Regional (200km): Multi-city analysis</span>
+                                </span>
+                            </span>
                         </label>
                         <select id="domain-scale" onchange="updateDomainScale(this.value)" 
                                 style="margin-top: 8px; width: 100%; padding: 8px; border: 2px solid #28a745; border-radius: 6px; font-size: 1em; background: var(--input-bg); color: var(--text-color); cursor: pointer;">
@@ -450,6 +551,17 @@
                         <label style="font-weight: bold; color: #667eea;">
                             🚀 Speed Multiplier: 
                             <span class="param-value" id="speed-multiplier-val" style="color: var(--text-color); font-size: 1.1em; font-weight: bold;">1.0x</span>
+                            <span class="tooltip">
+                                <span class="help-icon">?</span>
+                                <span class="tooltiptext">
+                                    <strong>Simulation Speed Control</strong>
+                                    Multiplies the base time step (dt) to speed up or slow down the simulation. Higher values = faster particle movement per frame.
+                                    <span class="example">💡 Examples:<br>
+                                    • 0.1x: Slow-motion analysis<br>
+                                    • 1.0x: Real-time (default)<br>
+                                    • 10x: Fast forward for long runs</span>
+                                </span>
+                            </span>
                         </label>
                         <input type="range" id="speed-multiplier" min="0.1" max="10" step="0.1" value="1.0" 
                                oninput="updateSpeedMultiplier(this.value)"
@@ -470,6 +582,17 @@
                         <label>
                             Turbulent Diffusion (σ_turb): 
                             <span class="param-value" id="sigma-val">2.5</span>
+                            <span class="tooltip">
+                                <span class="help-icon">?</span>
+                                <span class="tooltiptext">
+                                    <strong>Turbulent Diffusion Coefficient</strong>
+                                    Controls random particle spreading due to atmospheric turbulence. Higher values create wider, more dispersed plumes. Auto-scales with domain size.
+                                    <span class="example">💡 Examples:<br>
+                                    • 0.5-1.5 m/s: Rural/calm conditions<br>
+                                    • 2-3 m/s: Urban typical (default)<br>
+                                    • 5-10 m/s: Strong convection/mixing</span>
+                                </span>
+                            </span>
                         </label>
                         <input type="range" id="sigma-turb" min="0.1" max="10" step="0.1" value="2.5" 
                                oninput="updateParam('sigma_turb', this.value)">
@@ -483,6 +606,17 @@
                         <label style="font-weight: bold; color: #ff6b6b;">
                             💨 Wind Speed Multiplier: 
                             <span class="param-value" id="wind-speed-multiplier-val" style="color: var(--text-color); font-size: 1.1em; font-weight: bold;">1.0x</span>
+                            <span class="tooltip">
+                                <span class="help-icon">?</span>
+                                <span class="tooltiptext">
+                                    <strong>Wind Velocity Multiplier</strong>
+                                    Scales wind speed to simulate different weather conditions. Affects how fast pollutants are transported downwind.
+                                    <span class="example">💡 Examples:<br>
+                                    • 0.1x: Calm conditions (~1-2 m/s)<br>
+                                    • 1.0x: Normal winds (~12 m/s)<br>
+                                    • 5.0x: Storm/hurricane (~60 m/s)</span>
+                                </span>
+                            </span>
                         </label>
                         <input type="range" id="wind-speed-multiplier" min="0.1" max="5.0" step="0.1" value="1.0" 
                                oninput="updateWindSpeedMultiplier(this.value)"
@@ -503,6 +637,17 @@
                         <label>
                             Particles per Hotspot (npph): 
                             <span class="param-value" id="npph-val">2500</span>
+                            <span class="tooltip">
+                                <span class="help-icon">?</span>
+                                <span class="tooltiptext">
+                                    <strong>Particle Count per Source</strong>
+                                    Number of computational particles released from each emission hotspot. More particles = smoother visualization but slower performance.
+                                    <span class="example">💡 Examples:<br>
+                                    • 500: Fast, rough visualization<br>
+                                    • 2500: Balanced (default)<br>
+                                    • 10000: Smooth, publication-quality</span>
+                                </span>
+                            </span>
                         </label>
                         <input type="range" id="npph" min="500" max="10000" step="500" value="2500" 
                                oninput="updateParam('npph', this.value)">
@@ -515,6 +660,17 @@
                         <label>
                             Base Time Step (dt): 
                             <span class="param-value" id="dt-val">30.0</span> seconds
+                            <span class="tooltip">
+                                <span class="help-icon">?</span>
+                                <span class="tooltiptext">
+                                    <strong>Simulation Time Step</strong>
+                                    Base duration of each simulation step before speed multiplier. Smaller = more accurate but slower. Multiplied by speed multiplier for actual dt.
+                                    <span class="example">💡 Examples:<br>
+                                    • 10s: High accuracy, slow<br>
+                                    • 30s: Balanced (default)<br>
+                                    • 120s: Fast, less accurate</span>
+                                </span>
+                            </span>
                         </label>
                         <input type="range" id="dt" min="1" max="120" step="1" value="30" 
                                oninput="updateBaseTimestep(this.value)">
@@ -524,7 +680,19 @@
                     </div>
 
                     <div class="param-control">
-                        <label>Wind Field Type:</label>
+                        <label>
+                            Wind Field Type:
+                            <span class="tooltip">
+                                <span class="help-icon">?</span>
+                                <span class="tooltiptext">
+                                    <strong>Wind Data Source</strong>
+                                    Choose between synthetic (generated) or real meteorological wind data from ERA5/GFS models.
+                                    <span class="example">💡 Examples:<br>
+                                    • Synthetic: Testing, demonstrations<br>
+                                    • Real (ERA5/GFS): Actual case studies</span>
+                                </span>
+                            </span>
+                        </label>
                         <select id="wind-type" onchange="updateWindType()">
                             <option value="synthetic">Synthetic Wind</option>
                             <option value="real">Real Wind (ERA5/GFS)</option>
@@ -535,6 +703,14 @@
                         <label>
                             <input type="checkbox" id="show-wind-vectors" checked onchange="toggleWindVectors()">
                             Show Wind Vectors
+                            <span class="tooltip">
+                                <span class="help-icon">?</span>
+                                <span class="tooltiptext">
+                                    <strong>Wind Vector Display</strong>
+                                    Toggle visualization of wind direction arrows on the map. Helps understand how wind transports pollutants.
+                                    <span class="example">💡 Tip: Turn off for cleaner concentration visualizations</span>
+                                </span>
+                            </span>
                         </label>
                     </div>
                 </div>
