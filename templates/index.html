@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lagrangian Transport Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .controls {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            height: fit-content;
+        }
+
+        .control-section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .control-section:last-child {
+            border-bottom: none;
+        }
+
+        .control-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .param-control {
+            margin-bottom: 15px;
+        }
+
+        .param-control label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .param-control input[type="range"],
+        .param-control input[type="number"],
+        .param-control select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .param-control input[type="range"] {
+            padding: 0;
+        }
+
+        .param-value {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            margin-left: 10px;
+        }
+
+        .button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            width: 100%;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        .button.secondary {
+            background: #6c757d;
+        }
+
+        .button.secondary:hover {
+            background: #5a6268;
+        }
+
+        .button.danger {
+            background: #dc3545;
+        }
+
+        .button.danger:hover {
+            background: #c82333;
+        }
+
+        .visualization {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        #canvas-container {
+            width: 100%;
+            min-height: 600px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #canvas-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+
+        .hotspot-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+        }
+
+        .hotspot-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 5px;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+
+        .hotspot-coords {
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        .remove-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+
+        .remove-btn:hover {
+            background: #c82333;
+        }
+
+        .add-hotspot {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .add-hotspot input {
+            padding: 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .add-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .add-btn:hover {
+            background: #218838;
+        }
+
+        .status {
+            background: #e7f3ff;
+            border-left: 4px solid #667eea;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+
+        .status-item {
+            margin: 5px 0;
+            font-size: 0.95em;
+        }
+
+        .loading {
+            color: #667eea;
+            font-style: italic;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌊 Lagrangian Transport Simulator</h1>
+            <p class="subtitle">Interactive particle dispersion modeling</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Controls Panel -->
+            <div class="controls">
+                <!-- Status -->
+                <div class="status">
+                    <div class="status-item"><strong>Frame:</strong> <span id="frame-num">0</span></div>
+                    <div class="status-item"><strong>Time:</strong> <span id="time-val">0.0</span> s</div>
+                    <div class="status-item"><strong>Particles:</strong> <span id="particle-count">0</span></div>
+                </div>
+
+                <!-- Simulation Controls -->
+                <div class="control-section">
+                    <h3>⏯️ Simulation</h3>
+                    <button class="button" id="play-pause-btn" onclick="togglePlayPause()">
+                        ▶️ Play
+                    </button>
+                    <button class="button" onclick="stepSimulation()">Step Forward</button>
+                    <button class="button" onclick="runSimulation(10)">Run 10 Steps</button>
+                    <button class="button" onclick="runSimulation(50)">Run 50 Steps</button>
+                    <button class="button secondary" onclick="resetSimulation()">Reset</button>
+                </div>
+
+                <!-- Parameters -->
+                <div class="control-section">
+                    <h3>⚙️ Parameters</h3>
+                    
+                    <div class="param-control">
+                        <label>
+                            Turbulent Diffusion (σ_turb): 
+                            <span class="param-value" id="sigma-val">0.9</span>
+                        </label>
+                        <input type="range" id="sigma-turb" min="0" max="3" step="0.1" value="0.9" 
+                               oninput="updateParam('sigma_turb', this.value)">
+                    </div>
+
+                    <div class="param-control">
+                        <label>
+                            Particles per Hotspot (npph): 
+                            <span class="param-value" id="npph-val">2500</span>
+                        </label>
+                        <input type="range" id="npph" min="500" max="10000" step="500" value="2500" 
+                               oninput="updateParam('npph', this.value)">
+                    </div>
+
+                    <div class="param-control">
+                        <label>
+                            Time Step (dt): 
+                            <span class="param-value" id="dt-val">0.2</span>
+                        </label>
+                        <input type="range" id="dt" min="0.1" max="1.0" step="0.1" value="0.2" 
+                               oninput="updateParam('dt', this.value)">
+                    </div>
+
+                    <div class="param-control">
+                        <label>Wind Field Type:</label>
+                        <select id="wind-type" onchange="updateWindType()">
+                            <option value="synthetic">Synthetic Wind</option>
+                            <option value="real">Real Wind (ERA5/GFS)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="param-control">
+                        <label>
+                            <input type="checkbox" id="show-wind-vectors" checked onchange="toggleWindVectors()">
+                            Show Wind Vectors
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Wind Data Management -->
+                <div class="control-section">
+                    <h3>🌬️ Wind Data</h3>
+                    <div class="status" id="wind-status">
+                        <div class="status-item">
+                            <strong>Status:</strong> <span id="wind-loaded-status">No data loaded</span>
+                        </div>
+                    </div>
+                    
+                    <button class="button" onclick="createSampleData()">Create Sample Wind Data</button>
+                    
+                    <button class="button" onclick="toggleERA5Panel()" style="background: #4a90e2;">
+                        🌍 Fetch from ERA5 API
+                    </button>
+                    
+                    <div id="era5-panel" style="display: none; margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 4px;">
+                        <div style="margin-bottom: 8px;">
+                            <small style="color: #666;">✓ API Key configured (credentials auto-loaded)</small>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 8px;">
+                            <input type="date" id="era5-start-date" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                            <input type="date" id="era5-end-date" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div style="font-size: 0.85em; margin-bottom: 8px; color: #666;">
+                            Bounding Box (N, W, S, E):
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin-bottom: 8px;">
+                            <input type="number" id="bbox-north" value="45" step="0.1" style="padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                            <input type="number" id="bbox-west" value="-10" step="0.1" style="padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                            <input type="number" id="bbox-south" value="35" step="0.1" style="padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                            <input type="number" id="bbox-east" value="10" step="0.1" style="padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <button class="button" onclick="fetchERA5Data()" style="background: #28a745;">Fetch ERA5 Data</button>
+                    </div>
+                    
+                    <button class="button" onclick="toggleGFSPanel()" style="background: #e67e22;">
+                        🛰️ Fetch from GFS API
+                    </button>
+                    
+                    <div id="gfs-panel" style="display: none; margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 4px;">
+                        <div style="margin-bottom: 8px;">
+                            <label style="font-size: 0.9em;">Forecast Hour: <span id="forecast-hour-val">0</span></label>
+                            <input type="range" id="forecast-hour" min="0" max="120" step="6" value="0" 
+                                   style="width: 100%;" oninput="document.getElementById('forecast-hour-val').textContent = this.value">
+                        </div>
+                        <div style="font-size: 0.85em; margin-bottom: 8px; color: #666;">
+                            Bounding Box (N, W, S, E):
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin-bottom: 8px;">
+                            <input type="number" id="gfs-bbox-north" value="45" step="0.1" style="padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                            <input type="number" id="gfs-bbox-west" value="-10" step="0.1" style="padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                            <input type="number" id="gfs-bbox-south" value="35" step="0.1" style="padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                            <input type="number" id="gfs-bbox-east" value="10" step="0.1" style="padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <button class="button" onclick="fetchGFSData()" style="background: #28a745;">Fetch GFS Data</button>
+                    </div>
+                    
+                    <div style="margin: 15px 0;">
+                        <label class="button" style="cursor: pointer; text-align: center; margin: 0;">
+                            📁 Upload Wind Data (.npz or .nc)
+                            <input type="file" id="wind-file-input" accept=".npz,.nc" 
+                                   style="display: none;" onchange="uploadWindData()">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Hotspots -->
+                <div class="control-section">
+                    <h3>📍 Emission Hotspots</h3>
+                    <div class="hotspot-list" id="hotspot-list"></div>
+                    <div class="add-hotspot">
+                        <input type="number" id="new-x" placeholder="X" value="100">
+                        <input type="number" id="new-y" placeholder="Y" value="100">
+                        <button class="add-btn" onclick="addHotspot()">Add</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visualization -->
+            <div class="visualization">
+                <div id="canvas-container">
+                    <p style="color: #999;">Click "Step Forward" or "Run" to start simulation</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let hotspots = [[40.0, 120.0], [60.0, 130.0], [30.0, 90.0]];
+        let isRunning = false;
+        let isPlaying = false;
+        let playInterval = null;
+
+        // Initialize
+        window.onload = function() {
+            loadState();
+            renderHotspots();
+            checkWindStatus();
+        };
+
+        async function loadState() {
+            const response = await fetch('/api/state');
+            const data = await response.json();
+            hotspots = data.hotspots;
+            
+            document.getElementById('sigma-turb').value = data.sigma_turb;
+            document.getElementById('sigma-val').textContent = data.sigma_turb;
+            document.getElementById('npph').value = data.npph;
+            document.getElementById('npph-val').textContent = data.npph;
+            document.getElementById('dt').value = data.dt;
+            document.getElementById('dt-val').textContent = data.dt;
+            document.getElementById('wind-type').value = data.wind_type;
+            document.getElementById('show-wind-vectors').checked = data.show_wind_vectors !== false;
+            
+            isPlaying = data.is_playing || false;
+            updatePlayButton();
+            
+            updateParticleCount();
+            renderHotspots();
+        }
+
+        function updatePlayButton() {
+            const btn = document.getElementById('play-pause-btn');
+            if (isPlaying) {
+                btn.innerHTML = '⏸️ Pause';
+                btn.style.background = '#ffc107';
+            } else {
+                btn.innerHTML = '▶️ Play';
+                btn.style.background = '#28a745';
+            }
+        }
+
+        async function togglePlayPause() {
+            const response = await fetch('/api/play', {method: 'POST'});
+            const data = await response.json();
+            
+            if (data.success) {
+                isPlaying = data.is_playing;
+                updatePlayButton();
+                
+                if (isPlaying) {
+                    startAutoPlay();
+                } else {
+                    stopAutoPlay();
+                }
+            }
+        }
+
+        function startAutoPlay() {
+            if (playInterval) return;
+            
+            playInterval = setInterval(async () => {
+                if (!isPlaying) {
+                    stopAutoPlay();
+                    return;
+                }
+                await stepSimulation();
+            }, 100); // Adjust interval as needed
+        }
+
+        function stopAutoPlay() {
+            if (playInterval) {
+                clearInterval(playInterval);
+                playInterval = null;
+            }
+        }
+
+        function renderHotspots() {
+            const list = document.getElementById('hotspot-list');
+            list.innerHTML = '';
+            hotspots.forEach((h, i) => {
+                const item = document.createElement('div');
+                item.className = 'hotspot-item';
+                item.innerHTML = `
+                    <span class="hotspot-coords">[${h[0].toFixed(1)}, ${h[1].toFixed(1)}]</span>
+                    <button class="remove-btn" onclick="removeHotspot(${i})">Remove</button>
+                `;
+                list.appendChild(item);
+            });
+            updateParticleCount();
+        }
+
+        function updateParticleCount() {
+            const npph = parseInt(document.getElementById('npph').value);
+            const count = hotspots.length * npph;
+            document.getElementById('particle-count').textContent = count;
+        }
+
+        async function addHotspot() {
+            const x = parseFloat(document.getElementById('new-x').value);
+            const y = parseFloat(document.getElementById('new-y').value);
+            
+            if (isNaN(x) || isNaN(y)) {
+                alert('Please enter valid coordinates');
+                return;
+            }
+
+            if (x < 0 || x > 200 || y < 0 || y > 200) {
+                alert('Coordinates must be within domain [0-200, 0-200]');
+                return;
+            }
+
+            hotspots.push([x, y]);
+            await updateHotspots();
+            renderHotspots();
+        }
+
+        async function removeHotspot(index) {
+            hotspots.splice(index, 1);
+            await updateHotspots();
+            renderHotspots();
+        }
+
+        async function updateHotspots() {
+            await fetch('/api/hotspots', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({hotspots: hotspots})
+            });
+        }
+
+        async function updateParam(param, value) {
+            const valSpan = document.getElementById(param.replace('_', '-') + '-val');
+            valSpan.textContent = value;
+            
+            if (param === 'npph') {
+                updateParticleCount();
+            }
+
+            await fetch('/api/params', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({[param]: value})
+            });
+        }
+
+        async function updateWindType() {
+            const windType = document.getElementById('wind-type').value;
+            await fetch('/api/params', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({wind_type: windType})
+            });
+            
+            if (windType === 'real') {
+                await checkWindStatus();
+            }
+        }
+
+        async function toggleWindVectors() {
+            const showVectors = document.getElementById('show-wind-vectors').checked;
+            await fetch('/api/params', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({show_wind_vectors: showVectors})
+            });
+        }
+
+        async function checkWindStatus() {
+            const response = await fetch('/api/wind/status');
+            const data = await response.json();
+            
+            const statusSpan = document.getElementById('wind-loaded-status');
+            if (data.loaded && data.has_data) {
+                statusSpan.textContent = `✅ Loaded (${data.time_steps} time steps)`;
+                statusSpan.style.color = '#28a745';
+            } else {
+                statusSpan.textContent = '❌ No data loaded';
+                statusSpan.style.color = '#dc3545';
+            }
+        }
+
+        async function createSampleData() {
+            const statusSpan = document.getElementById('wind-loaded-status');
+            statusSpan.textContent = '⏳ Creating sample data...';
+            statusSpan.style.color = '#ffc107';
+            
+            const response = await fetch('/api/wind/sample', {method: 'POST'});
+            const data = await response.json();
+            
+            if (data.success) {
+                alert('Sample wind data created successfully!\nFile: wind_data.npz');
+                await checkWindStatus();
+            } else {
+                alert('Failed to create sample data');
+                statusSpan.textContent = '❌ No data loaded';
+                statusSpan.style.color = '#dc3545';
+            }
+        }
+
+        async function uploadWindData() {
+            const fileInput = document.getElementById('wind-file-input');
+            const file = fileInput.files[0];
+            
+            if (!file) return;
+            
+            const statusSpan = document.getElementById('wind-loaded-status');
+            statusSpan.textContent = '⏳ Uploading and loading...';
+            statusSpan.style.color = '#ffc107';
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            const response = await fetch('/api/wind/upload', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                alert('Wind data uploaded and loaded successfully!');
+                await checkWindStatus();
+            } else {
+                alert('Failed to load wind data: ' + (data.error || 'Unknown error'));
+                statusSpan.textContent = '❌ Load failed';
+                statusSpan.style.color = '#dc3545';
+            }
+            
+            // Reset file input
+            fileInput.value = '';
+        }
+
+        function toggleERA5Panel() {
+            const panel = document.getElementById('era5-panel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            
+            // Set default dates
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 2);
+            const twoDaysAgo = new Date(today);
+            twoDaysAgo.setDate(twoDaysAgo.getDate() - 3);
+            
+            document.getElementById('era5-start-date').value = twoDaysAgo.toISOString().split('T')[0];
+            document.getElementById('era5-end-date').value = yesterday.toISOString().split('T')[0];
+        }
+
+        function toggleGFSPanel() {
+            const panel = document.getElementById('gfs-panel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function fetchERA5Data() {
+            const apiKey = document.getElementById('cds-api-key').value;
+            const startDate = document.getElementById('era5-start-date').value;
+            const endDate = document.getElementById('era5-end-date').value;
+            const bbox = [
+                parseFloat(document.getElementById('bbox-north').value),
+                parseFloat(document.getElementById('bbox-west').value),
+                parseFloat(document.getElementById('bbox-south').value),
+                parseFloat(document.getElementById('bbox-east').value)
+            ];
+
+            if (!apiKey) {
+                alert('Please enter your CDS API key');
+                return;
+            }
+
+            const statusSpan = document.getElementById('wind-loaded-status');
+            statusSpan.textContent = '⏳ Fetching ERA5 data from CDS (this may take a few minutes)...';
+            statusSpan.style.color = '#ffc107';
+
+            // Setup credentials
+            await fetch('/api/wind/setup-creds', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({api_key: apiKey})
+            });
+
+            // Fetch data
+            const response = await fetch('/api/wind/fetch-era5', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    bbox: bbox,
+                    start_date: startDate,
+                    end_date: endDate
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert('ERA5 data fetched successfully from CDS!');
+                await checkWindStatus();
+                document.getElementById('era5-panel').style.display = 'none';
+            } else {
+                alert('Failed to fetch ERA5 data: ' + (data.error || 'Unknown error'));
+                statusSpan.textContent = '❌ Fetch failed';
+                statusSpan.style.color = '#dc3545';
+            }
+        }
+
+        async function fetchGFSData() {
+            const forecastHour = parseInt(document.getElementById('forecast-hour').value);
+            const bbox = [
+                parseFloat(document.getElementById('gfs-bbox-north').value),
+                parseFloat(document.getElementById('gfs-bbox-west').value),
+                parseFloat(document.getElementById('gfs-bbox-south').value),
+                parseFloat(document.getElementById('gfs-bbox-east').value)
+            ];
+
+            const statusSpan = document.getElementById('wind-loaded-status');
+            statusSpan.textContent = '⏳ Fetching GFS data...';
+            statusSpan.style.color = '#ffc107';
+
+            const response = await fetch('/api/wind/fetch-gfs', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    bbox: bbox,
+                    forecast_hour: forecastHour
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert('GFS data fetched successfully!');
+                await checkWindStatus();
+                document.getElementById('gfs-panel').style.display = 'none';
+            } else {
+                alert('GFS fetch note: ' + (data.error || 'Using fallback data'));
+                await checkWindStatus();
+            }
+        }
+
+        async function stepSimulation() {
+            if (isRunning) return;
+            
+            const container = document.getElementById('canvas-container');
+            container.innerHTML = '<p class="loading">Computing...</p>';
+            
+            const response = await fetch('/api/step', {method: 'POST'});
+            const data = await response.json();
+            
+            if (data.success) {
+                container.innerHTML = `<img src="data:image/png;base64,${data.image}" alt="Simulation frame">`;
+                document.getElementById('frame-num').textContent = data.frame;
+                document.getElementById('time-val').textContent = data.time.toFixed(1);
+            }
+        }
+
+        async function runSimulation(steps) {
+            if (isRunning) return;
+            isRunning = true;
+            
+            const container = document.getElementById('canvas-container');
+            container.innerHTML = `<p class="loading">Running ${steps} steps...</p>`;
+            
+            const response = await fetch('/api/run', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({n_steps: steps})
+            });
+            const data = await response.json();
+            
+            if (data.success && data.images.length > 0) {
+                // Show last frame
+                const lastImage = data.images[data.images.length - 1];
+                container.innerHTML = `<img src="data:image/png;base64,${lastImage}" alt="Simulation frame">`;
+                const finalTime = data.frame * parseFloat(document.getElementById('dt').value);
+                document.getElementById('frame-num').textContent = data.frame;
+                document.getElementById('time-val').textContent = finalTime.toFixed(1);
+            }
+            
+            isRunning = false;
+        }
+
+        async function resetSimulation() {
+            // Stop playing if active
+            if (isPlaying) {
+                await togglePlayPause();
+            }
+            
+            const container = document.getElementById('canvas-container');
+            container.innerHTML = '<p style="color: #999;">Click "Step Forward" or "Run" to start simulation</p>';
+            
+            await fetch('/api/reset', {method: 'POST'});
+            
+            document.getElementById('frame-num').textContent = '0';
+            document.getElementById('time-val').textContent = '0.0';
+        }
+    </script>
+</body>
+</html>
