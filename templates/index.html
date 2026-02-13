@@ -786,8 +786,8 @@
                     <h3>📍 Emission Hotspots</h3>
                     <div class="hotspot-list" id="hotspot-list"></div>
                     <div class="add-hotspot">
-                        <input type="number" id="new-x" placeholder="X" value="100">
-                        <input type="number" id="new-y" placeholder="Y" value="100">
+                        <input type="number" id="new-x" placeholder="X" value="25">
+                        <input type="number" id="new-y" placeholder="Y" value="25">
                         <button class="add-btn" onclick="addHotspot()">Add</button>
                     </div>
                 </div>
@@ -952,8 +952,8 @@
                 return;
             }
 
-            if (x < 0 || x > 200 || y < 0 || y > 200) {
-                alert('Coordinates must be within domain [0-200, 0-200]');
+            if (x < 0 || x > 50 || y < 0 || y > 50) {
+                alert('Coordinates must be within domain [0-50, 0-50]');
                 return;
             }
 
