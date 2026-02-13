@@ -1,0 +1,65 @@
+<!-- Wind Data Management -->
+<div class="control-section">
+    <h3>🌬️ Wind Data</h3>
+    <div class="status" id="wind-status">
+        <div class="status-item">
+            <strong>Status:</strong> <span id="wind-loaded-status">No data loaded</span>
+        </div>
+    </div>
+    
+    <button class="button" onclick="createSampleData()">Create Sample Wind Data</button>
+    
+    <button class="button" onclick="toggleERA5Panel()" style="background: #4a90e2;">
+        🌍 Fetch from ERA5 API
+    </button>
+    
+    <div id="era5-panel" style="display: none; margin: 10px 0; padding: 10px; background: var(--hotspot-item-bg); border: 1px solid var(--input-border); border-radius: 4px;">
+        <div style="margin-bottom: 8px;">
+            <small style="color: var(--label-color);">✓ API Key configured (credentials auto-loaded)</small>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 8px;">
+            <input type="date" id="era5-start-date" style="padding: 6px; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
+            <input type="date" id="era5-end-date" style="padding: 6px; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
+        </div>
+        <div style="font-size: 0.85em; margin-bottom: 8px; color: var(--label-color);">
+            Bounding Box:
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;">
+            <input type="number" id="bbox-north" value="45" step="0.1" placeholder="North (Latitude)" style="padding: 8px; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
+            <input type="number" id="bbox-west" value="-10" step="0.1" placeholder="West (Longitude)" style="padding: 8px; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
+            <input type="number" id="bbox-south" value="35" step="0.1" placeholder="South (Latitude)" style="padding: 8px; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
+            <input type="number" id="bbox-east" value="10" step="0.1" placeholder="East (Longitude)" style="padding: 8px; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
+        </div>
+        <button class="button" onclick="fetchERA5Data()" style="background: #28a745;">Fetch ERA5 Data</button>
+    </div>
+    
+    <button class="button" onclick="toggleGFSPanel()" style="background: #e67e22;">
+        🛰️ Fetch from GFS API
+    </button>
+    
+    <div id="gfs-panel" style="display: none; margin: 10px 0; padding: 10px; background: var(--hotspot-item-bg); border: 1px solid var(--input-border); border-radius: 4px;">
+        <div style="margin-bottom: 8px;">
+            <label style="font-size: 0.9em; color: var(--text-color);">Forecast Hour: <span id="forecast-hour-val">0</span></label>
+            <input type="range" id="forecast-hour" min="0" max="120" step="6" value="0" 
+                   style="width: 100%;" oninput="document.getElementById('forecast-hour-val').textContent = this.value">
+        </div>
+        <div style="font-size: 0.85em; margin-bottom: 8px; color: var(--label-color);">
+            Bounding Box:
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;">
+            <input type="number" id="gfs-bbox-north" value="45" step="0.1" placeholder="North (Latitude)" style="padding: 8px; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
+            <input type="number" id="gfs-bbox-west" value="-10" step="0.1" placeholder="West (Longitude)" style="padding: 8px; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
+            <input type="number" id="gfs-bbox-south" value="35" step="0.1" placeholder="South (Latitude)" style="padding: 8px; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
+            <input type="number" id="gfs-bbox-east" value="10" step="0.1" placeholder="East (Longitude)" style="padding: 8px; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
+        </div>
+        <button class="button" onclick="fetchGFSData()" style="background: #28a745;">Fetch GFS Data</button>
+    </div>
+    
+    <div style="margin: 15px 0;">
+        <label class="button" style="cursor: pointer; text-align: center; margin: 0;">
+            📁 Upload Wind Data (.npz or .nc)
+            <input type="file" id="wind-file-input" accept=".npz,.nc" 
+                   style="display: none;" onchange="uploadWindData()">
+        </label>
+    </div>
+</div>

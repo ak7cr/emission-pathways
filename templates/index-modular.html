@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lagrangian Transport Simulator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <!-- Dark Mode Toggle -->
+    <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">
+        <span id="dark-mode-icon">🌙</span>
+        <span id="dark-mode-text">Dark</span>
+    </button>
+
+    <div class="container">
+        <header>
+            <h1>🌊 Lagrangian Transport Simulator</h1>
+            <p class="subtitle">Interactive particle dispersion modeling</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Controls Panel -->
+            <div class="controls">
+                <!-- Status -->
+                <div class="status">
+                    <div class="status-item"><strong>Frame:</strong> <span id="frame-num">0</span></div>
+                    <div class="status-item"><strong>Time:</strong> <span id="time-val">0.0</span> s</div>
+                    <div class="status-item"><strong>Particles:</strong> <span id="particle-count">0</span></div>
+                </div>
+
+                <!-- Sections are loaded dynamically here -->
+                <div id="controls-container"></div>
+            </div>
+
+            <!-- Visualization -->
+            <div class="visualization">
+                <div id="canvas-container">
+                    <p style="color: #999;">Click "Step Forward" or "Run" to start simulation</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load configuration and section loader -->
+    <script src="{{ url_for('static', filename='js/ui-config.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/section-loader.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    
+    <script src="{{ url_for('static', filename='js/section-loader.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ui-config.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        // Initialize and load sections
+        async function initializeUI() {
+            // Load all enabled sections
+            const sectionsToLoad = UI_SECTIONS
+                .filter(section => section.enabled)
+                .map(section => ({
+                    file: section.file,
+                    container: section.container
+                }));
+            
+            await SectionLoader.loadSections(sectionsToLoad);
+            
+            // Initialize application after sections are loaded
+            loadDarkModePreference();
+            loadState();
+            renderHotspots();
+            checkWindStatus();
+        }
+
+        // Start when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeUI);
+        } else {
+            initializeUI();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!-- Emission Hotspots -->
+<div class="control-section">
+    <h3>📍 Emission Hotspots</h3>
+    
+    <!-- Emission Mode Control -->
+    <div class="param-control" style="margin-bottom: 15px; padding: 12px; background: rgba(102, 126, 234, 0.1); border-radius: 6px; border: 1px solid rgba(102, 126, 234, 0.3);">
+        <label style="font-weight: bold;">
+            🔄 Emission Mode:
+            <span class="tooltip">
+                <span class="help-icon">?</span>
+                <span class="tooltiptext">
+                    <strong>Emission Mode</strong>
+                    Controls how particles are released from hotspots.
+                    <span class="example">💡 Options:<br>
+                    • Continuous: New particles emit at regular intervals<br>
+                    • Single: One-time emission only</span>
+                </span>
+            </span>
+        </label>
+        <select id="emission-mode" onchange="updateEmissionMode()" style="margin-top: 8px;">
+            <option value="continuous">Continuous Flow</option>
+            <option value="single">Single Release</option>
+        </select>
+    </div>
+
+    <!-- Emission Interval Slider (only for continuous mode) -->
+    <div id="emission-interval-control" class="param-control" style="margin-bottom: 15px;">
+        <label>
+            ⏱️ Emission Interval: 
+            <span class="param-value" id="emission-interval-val">30.0</span> seconds
+            <span class="tooltip">
+                <span class="help-icon">?</span>
+                <span class="tooltiptext">
+                    <strong>Emission Interval</strong>
+                    Time between successive particle releases in continuous mode. Lower values = more frequent emissions.
+                    <span class="example">💡 Examples:<br>
+                    • 10s: Frequent emissions (heavy pollution)<br>
+                    • 30s: Moderate (default)<br>
+                    • 120s: Sparse emissions</span>
+                </span>
+            </span>
+        </label>
+        <input type="range" id="emission-interval" min="5" max="120" step="5" value="30" 
+               oninput="updateEmissionInterval(this.value)">
+        <div style="font-size: 0.85em; color: var(--label-color); margin-top: 3px;">
+            Lower = more frequent emissions
+        </div>
+    </div>
+
+    <div class="hotspot-list" id="hotspot-list"></div>
+    <div class="add-hotspot">
+        <input type="number" id="new-x" placeholder="X" value="25">
+        <input type="number" id="new-y" placeholder="Y" value="25">
+        <button class="add-btn" onclick="addHotspot()">Add</button>
+    </div>
+</div>

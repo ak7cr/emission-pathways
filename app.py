@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, send_from_directory
 from wind_api import WindDataFetcher
 
 # Import modular components
@@ -12,8 +12,13 @@ from wind_field import get_wind_at_particles, load_wind_data, create_sample_wind
 from visualization import generate_frame
 from api_routes import register_routes
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 wind_fetcher = WindDataFetcher()
+
+@app.route('/sections/<path:filename>')
+def serve_section(filename):
+    """Serve HTML section files"""
+    return send_from_directory('templates/sections', filename)
 
 # Wrapper functions to integrate with API routes
 def advect_wrapper(sim_state_dict, t):
@@ -78,6 +83,11 @@ def generate_frame_wrapper(sim_state_dict, t):
 
 @app.route('/')
 def index():
+    return render_template('index-modular.html')
+
+@app.route('/legacy')
+def legacy():
+    """Original monolithic version"""
     return render_template('index.html')
 
 # Register all API routes
