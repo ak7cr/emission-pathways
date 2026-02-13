@@ -7,7 +7,7 @@ from simulation_state import (
     sim_state, emission_data, wind_data_cache, wind_interpolators,
     update_mass_per_particle, KM_TO_M
 )
-from particle_physics import initialize_particles, advect, concentration_field
+from particle_physics import initialize_particles, emit_new_particles, advect, concentration_field
 from wind_field import get_wind_at_particles, load_wind_data, create_sample_wind_data
 from visualization import generate_frame
 from api_routes import register_routes
@@ -89,6 +89,7 @@ register_routes(
     wind_fetcher,
     update_mass_per_particle,
     initialize_particles,
+    emit_new_particles,
     advect_wrapper,
     concentration_field_wrapper,
     generate_frame_wrapper,

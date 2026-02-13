@@ -8,7 +8,7 @@ import numpy as np
 
 def register_routes(app, sim_state, emission_data, wind_data_cache, 
                    wind_fetcher, update_mass_per_particle,
-                   initialize_particles_func, advect_func, concentration_field_func,
+                   initialize_particles_func, emit_new_particles_func, advect_func, concentration_field_func,
                    generate_frame_func, load_wind_data_func, create_sample_wind_data_func):
     """Register all API routes"""
     
@@ -32,7 +32,9 @@ def register_routes(app, sim_state, emission_data, wind_data_cache,
             'active_particles': int(sim_state['particle_active'].sum()) if sim_state['particle_active'] is not None else 0,
             'total_particles': len(sim_state['particle_active']) if sim_state['particle_active'] is not None else 0,
             'super_particle_ratio': sim_state.get('super_particle_ratio', 1),
-            'use_bilinear_interp': sim_state.get('use_bilinear_interp', True)
+            'use_bilinear_interp': sim_state.get('use_bilinear_interp', True),
+            'emission_mode': sim_state.get('emission_mode', 'continuous'),
+            'emission_interval': sim_state.get('emission_interval', 30.0)
         })
 
     @app.route('/api/physics', methods=['GET', 'POST'])
@@ -296,6 +298,7 @@ def register_routes(app, sim_state, emission_data, wind_data_cache,
         sim_state['particles'] = None
         sim_state['current_frame'] = 0
         sim_state['is_playing'] = False
+        sim_state['last_emission_time'] = 0.0
         return jsonify({'success': True})
 
     @app.route('/api/emissions', methods=['GET', 'POST'])
@@ -533,6 +536,46 @@ def register_routes(app, sim_state, emission_data, wind_data_cache,
                 'success': False,
                 'error': str(e)
             })
+    @app.route('/api/emission', methods=['GET', 'POST'])
+    @app.route('/api/emission', methods=['GET', 'POST'])
+    def manage_emission():
+        """Get or update emission parameters"""
+        if request.method == 'GET':
+            return jsonify({
+                'success': True,
+                'emission': {
+                    'mode': sim_state.get('emission_mode', 'continuous'),
+                    'interval': sim_state.get('emission_interval', 30.0),
+                    'last_emission_time': sim_state.get('last_emission_time', 0.0)
+                }
+            })
+        
+        elif request.method == 'POST':
+            data = request.json
+            reset_needed = False
+            
+            if 'emission_mode' in data:
+                if data['emission_mode'] in ['continuous', 'single']:
+                    old_mode = sim_state.get('emission_mode', 'continuous')
+                    sim_state['emission_mode'] = data['emission_mode']
+                    
+                    # Reset if switching modes
+                    if old_mode != data['emission_mode']:
+                        reset_needed = True
+            
+            if 'emission_interval' in data:
+                sim_state['emission_interval'] = float(data['emission_interval'])
+            
+            if reset_needed:
+                sim_state['particles'] = None
+                sim_state['current_frame'] = 0
+                sim_state['last_emission_time'] = 0.0
+            
+            return jsonify({
+                'success': True,
+                'message': 'Emission parameters updated',
+                'reset': reset_needed
+            })
 
     @app.route('/api/step', methods=['POST'])
     def step_simulation():
@@ -545,9 +588,26 @@ def register_routes(app, sim_state, emission_data, wind_data_cache,
             sim_state['particles'] = particles
             sim_state['particle_active'] = particle_active
             sim_state['current_frame'] = 0
+            sim_state['last_emission_time'] = 0.0
             update_mass_per_particle()
         
         t = sim_state['current_frame'] * sim_state['dt']
+        
+        # Check if we need to emit new particles (continuous mode)
+        emission_mode = sim_state.get('emission_mode', 'continuous')
+        emission_interval = sim_state.get('emission_interval', 30.0)
+        last_emission_time = sim_state.get('last_emission_time', 0.0)
+        
+        if emission_mode == 'continuous' and (t - last_emission_time) >= emission_interval:
+            # Emit new particles
+            sim_state['particles'], sim_state['particle_active'] = emit_new_particles_func(
+                sim_state['particles'],
+                sim_state['particle_active'],
+                sim_state['hotspots'],
+                sim_state['npph']
+            )
+            sim_state['last_emission_time'] = t
+        
         sim_state['particles'] = advect_func(sim_state, t)
         
         # Calculate concentration statistics

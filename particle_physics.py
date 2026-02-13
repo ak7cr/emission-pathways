@@ -37,6 +37,84 @@ def initialize_particles(hotspots, npph):
     
     return particles, particle_active
 
+def emit_new_particles(particles, particle_active, hotspots, npph):
+    """
+    Emit new particles from hotspots (for continuous emission mode)
+    
+    Reuses inactive particle slots first, then extends arrays if needed
+    
+    Parameters:
+    -----------
+    particles : ndarray
+        Current particle array
+    particle_active : ndarray
+        Current particle active status
+    hotspots : list
+        Hotspot positions
+    npph : int
+        Number of particles per hotspot
+    
+    Returns:
+    --------
+    particles : ndarray
+        Updated particle array
+    particle_active : ndarray
+        Updated particle active status
+    """
+    hotspots = np.array(hotspots)
+    n_new = npph * len(hotspots)
+    
+    # Find inactive particle slots
+    inactive_indices = np.where(~particle_active)[0]
+    n_available = len(inactive_indices)
+    
+    if n_available >= n_new:
+        # Reuse inactive slots
+        for i, h in enumerate(hotspots):
+            start = i * npph
+            end = (i + 1) * npph
+            indices = inactive_indices[start:end]
+            particles[indices, 0] = h[0] + np.random.normal(scale=2.0, size=npph)
+            particles[indices, 1] = h[1] + np.random.normal(scale=2.0, size=npph)
+            particles[indices, 2] = 1.0
+            particle_active[indices] = True
+    else:
+        # Reuse available slots and extend arrays
+        n_to_extend = n_new - n_available
+        
+        # Reuse inactive slots
+        if n_available > 0:
+            particles_per_hotspot = n_available // len(hotspots)
+            for i, h in enumerate(hotspots):
+                start = i * particles_per_hotspot
+                end = (i + 1) * particles_per_hotspot
+                if end <= n_available:
+                    indices = inactive_indices[start:end]
+                    n = len(indices)
+                    particles[indices, 0] = h[0] + np.random.normal(scale=2.0, size=n)
+                    particles[indices, 1] = h[1] + np.random.normal(scale=2.0, size=n)
+                    particles[indices, 2] = 1.0
+                    particle_active[indices] = True
+        
+        # Extend arrays for remaining particles
+        new_particles = np.zeros((n_to_extend, 3))
+        new_active = np.ones(n_to_extend, dtype=bool)
+        
+        particles_per_hotspot = n_to_extend // len(hotspots)
+        for i, h in enumerate(hotspots):
+            start = i * particles_per_hotspot
+            end = (i + 1) * particles_per_hotspot
+            if i == len(hotspots) - 1:  # Last hotspot gets remaining particles
+                end = n_to_extend
+            new_particles[start:end, 0] = h[0] + np.random.normal(scale=2.0, size=end-start)
+            new_particles[start:end, 1] = h[1] + np.random.normal(scale=2.0, size=end-start)
+            new_particles[start:end, 2] = 1.0
+        
+        particles = np.vstack([particles, new_particles])
+        particle_active = np.concatenate([particle_active, new_active])
+    
+    return particles, particle_active
+
 def apply_boundary_conditions(p, particle_active, boundary_type, xmin, xmax, ymin, ymax):
     """
     Apply boundary conditions to particles

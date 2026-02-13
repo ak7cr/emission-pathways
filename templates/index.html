@@ -784,6 +784,52 @@
                 <!-- Hotspots -->
                 <div class="control-section">
                     <h3>📍 Emission Hotspots</h3>
+                    
+                    <!-- Emission Mode Control -->
+                    <div class="param-control" style="margin-bottom: 15px; padding: 12px; background: rgba(102, 126, 234, 0.1); border-radius: 6px; border: 1px solid rgba(102, 126, 234, 0.3);">
+                        <label style="font-weight: bold;">
+                            🔄 Emission Mode:
+                            <span class="tooltip">
+                                <span class="help-icon">?</span>
+                                <span class="tooltiptext">
+                                    <strong>Emission Mode</strong>
+                                    Controls how particles are released from hotspots.
+                                    <span class="example">💡 Options:<br>
+                                    • Continuous: New particles emit at regular intervals<br>
+                                    • Single: One-time emission only</span>
+                                </span>
+                            </span>
+                        </label>
+                        <select id="emission-mode" onchange="updateEmissionMode()" style="margin-top: 8px;">
+                            <option value="continuous">Continuous Flow</option>
+                            <option value="single">Single Release</option>
+                        </select>
+                    </div>
+
+                    <!-- Emission Interval Slider (only for continuous mode) -->
+                    <div id="emission-interval-control" class="param-control" style="margin-bottom: 15px;">
+                        <label>
+                            ⏱️ Emission Interval: 
+                            <span class="param-value" id="emission-interval-val">30.0</span> seconds
+                            <span class="tooltip">
+                                <span class="help-icon">?</span>
+                                <span class="tooltiptext">
+                                    <strong>Emission Interval</strong>
+                                    Time between successive particle releases in continuous mode. Lower values = more frequent emissions.
+                                    <span class="example">💡 Examples:<br>
+                                    • 10s: Frequent emissions (heavy pollution)<br>
+                                    • 30s: Moderate (default)<br>
+                                    • 120s: Sparse emissions</span>
+                                </span>
+                            </span>
+                        </label>
+                        <input type="range" id="emission-interval" min="5" max="120" step="5" value="30" 
+                               oninput="updateEmissionInterval(this.value)">
+                        <div style="font-size: 0.85em; color: var(--label-color); margin-top: 3px;">
+                            Lower = more frequent emissions
+                        </div>
+                    </div>
+
                     <div class="hotspot-list" id="hotspot-list"></div>
                     <div class="add-hotspot">
                         <input type="number" id="new-x" placeholder="X" value="25">
@@ -859,6 +905,16 @@
             document.getElementById('dt-val').textContent = data.dt;
             document.getElementById('wind-type').value = data.wind_type;
             document.getElementById('show-wind-vectors').checked = data.show_wind_vectors !== false;
+            
+            // Load emission controls
+            const emissionMode = data.emission_mode || 'continuous';
+            const emissionInterval = data.emission_interval || 30.0;
+            document.getElementById('emission-mode').value = emissionMode;
+            document.getElementById('emission-interval').value = emissionInterval;
+            document.getElementById('emission-interval-val').textContent = emissionInterval.toFixed(1);
+            
+            // Show/hide interval control based on mode
+            updateEmissionModeUI(emissionMode);
             
             isPlaying = data.is_playing || false;
             updatePlayButton();
@@ -1053,6 +1109,45 @@
             const slider = document.getElementById('wind-speed-multiplier');
             slider.value = value;
             updateWindSpeedMultiplier(value);
+        }
+
+        async function updateEmissionMode() {
+            const mode = document.getElementById('emission-mode').value;
+            
+            // Show/hide interval control
+            updateEmissionModeUI(mode);
+            
+            // Send to backend
+            await fetch('/api/emission', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({emission_mode: mode})
+            });
+            
+            console.log(`Emission mode set to: ${mode}`);
+        }
+
+        function updateEmissionModeUI(mode) {
+            const intervalControl = document.getElementById('emission-interval-control');
+            if (mode === 'continuous') {
+                intervalControl.style.display = 'block';
+            } else {
+                intervalControl.style.display = 'none';
+            }
+        }
+
+        async function updateEmissionInterval(value) {
+            const interval = parseFloat(value);
+            document.getElementById('emission-interval-val').textContent = interval.toFixed(1);
+            
+            // Send to backend
+            await fetch('/api/emission', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({emission_interval: interval})
+            });
+            
+            console.log(`Emission interval set to: ${interval.toFixed(1)}s`);
         }
 
         async function updateDomainScale(scale) {

@@ -53,6 +53,10 @@ sim_state = {
     'use_bilinear_interp': True,  # Use bilinear interpolation for wind (more accurate)
     # Wind speed control
     'wind_speed_multiplier': 1.0,  # Multiplier for wind speed (0.1 to 5.0), allows testing different wind scenarios
+    # Emission control
+    'emission_mode': 'continuous',  # 'continuous' or 'single'
+    'emission_interval': 30.0,  # Time between emissions in seconds (for continuous mode)
+    'last_emission_time': 0.0,  # Track when particles were last emitted
 }
 
 # Wind field interpolators (cached for performance)
