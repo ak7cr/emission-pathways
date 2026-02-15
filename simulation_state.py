@@ -37,6 +37,9 @@ sim_state = {
     'is_playing': False,
     'wind_data': None,  # Cache for loaded wind data
     'show_wind_vectors': True,  # Show wind vectors by default
+    # Dispersion model selection
+    'model_type': 'lagrangian',  # lagrangian, eulerian, gaussian_plume, puff, semi_lagrangian, hybrid
+    'model_state': None,  # Model-specific state
     # Physical parameters for concentration calculation
     'mixing_height': 1000.0,  # Mixing layer height in meters
     'cell_area': calculate_cell_area(),

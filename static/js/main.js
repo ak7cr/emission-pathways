@@ -634,3 +634,151 @@ let hotspots = [[40.0, 120.0], [60.0, 130.0], [30.0, 90.0]];
             document.getElementById('frame-num').textContent = '0';
             document.getElementById('time-val').textContent = '0.0';
         }
+
+        // ============ Model Management Functions ============
+        
+        const MODEL_INFO = {
+            'lagrangian': {
+                description: 'Track individual particles through space - best for point sources',
+                advantages: 'Excellent for point sources, mass conservative, handles complex terrain'
+            },
+            'eulerian': {
+                description: 'Solve advection-diffusion PDE on fixed grid - best for large domains',
+                advantages: 'Fast for regional scale, no statistical noise, easy to couple with weather models'
+            },
+            'gaussian_plume': {
+                description: 'Analytical steady-state solution - fastest, regulatory standard',
+                advantages: 'Extremely fast, no numerical errors, EPA/regulatory approved'
+            },
+            'puff': {
+                description: 'Track expanding Gaussian puffs - good for intermittent sources',
+                advantages: 'Time-varying winds, intermittent emissions, faster than full Lagrangian'
+            },
+            'semi_lagrangian': {
+                description: 'Backward trajectory on grid - reduces numerical diffusion',
+                advantages: 'Stable with large timesteps, reduced numerical diffusion, good accuracy'
+            },
+            'hybrid': {
+                description: 'Particles near source, grid far away - best accuracy and efficiency',
+                advantages: 'Best of both worlds: accuracy near source, efficiency at distance'
+            }
+        };
+        
+        async function loadModelState() {
+            try {
+                const response = await fetch('/api/models/current');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const modelType = data.model_type;
+                    const modelSelect = document.getElementById('model-type');
+                    if (modelSelect) {
+                        modelSelect.value = modelType;
+                        updateModelInfo(modelType);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading model state:', error);
+            }
+        }
+        
+        async function changeModel() {
+            const modelSelect = document.getElementById('model-type');
+            const modelType = modelSelect.value;
+            
+            // Confirm if simulation is running
+            if (isPlaying) {
+                const confirm = window.confirm('Stop simulation and switch models?');
+                if (!confirm) {
+                    // Reload previous selection
+                    await loadModelState();
+                    return;
+                }
+                await togglePlayPause();
+            }
+            
+            // Update UI immediately
+            updateModelInfo(modelType);
+            
+            try {
+                const response = await fetch('/api/models/select', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({model_type: modelType})
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Show success message
+                    showNotification(`✓ Switched to ${data.model_info.name}`, 'success');
+                    
+                    // Reset visualization
+                    const container = document.getElementById('canvas-container');
+                    container.innerHTML = '<p style="color: #999;">Click "Step Forward" or "Run" to start simulation with new model</p>';
+                    
+                    // Reset frame counter
+                    document.getElementById('frame-num').textContent = '0';
+                    document.getElementById('time-val').textContent = '0.0';
+                } else {
+                    showNotification(`✗ Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error changing model:', error);
+                showNotification('✗ Failed to switch models', 'error');
+            }
+        }
+        
+        function updateModelInfo(modelType) {
+            const info = MODEL_INFO[modelType];
+            if (info) {
+                document.getElementById('model-desc').textContent = info.description;
+                document.getElementById('model-advantages').textContent = `Advantages: ${info.advantages}`;
+            }
+        }
+        
+        function showNotification(message, type = 'info') {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.textContent = message;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#007bff'};
+                color: white;
+                border-radius: 6px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+                z-index: 10000;
+                animation: slideIn 0.3s ease;
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+        
+        // Add CSS animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(400px); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(400px); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Load model state on page load
+        window.addEventListener('load', () => {
+            loadModelState();
+        });

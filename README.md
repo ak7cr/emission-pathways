@@ -1,8 +1,17 @@
-# Lagrangian Transport Simulator with Physical Units
+# Multi-Model Atmospheric Dispersion Simulator
 
-An advanced web-based interface for simulating and visualizing Lagrangian particle transport with turbulent dispersion, **now with physical concentration units (µg/m³)** and comprehensive emission estimation capabilities.
+An advanced web-based interface for simulating and visualizing atmospheric particle transport with **multiple dispersion modeling approaches**, physical concentration units (µg/m³), and comprehensive emission estimation capabilities.
 
-## 🌟 New Features (v2.0)
+## 🌟 New Features (v3.0)
+
+### Multiple Dispersion Models 🎯
+Choose from **6 different modeling approaches** with a simple dropdown:
+- **🎯 Lagrangian (Particle Tracking)**: Track individual particles - best for point sources
+- **📐 Eulerian (Grid-Based PDE)**: Solve advection-diffusion equations - best for large domains
+- **📊 Gaussian Plume (Analytical)**: Steady-state analytical solution - fastest, regulatory standard
+- **💨 Puff Model (Discrete Puffs)**: Track expanding Gaussian puffs - good for intermittent sources
+- **↩️ Semi-Lagrangian (Hybrid)**: Backward trajectories on grid - reduces numerical diffusion
+- **🔀 Hybrid (Lagrangian + Eulerian)**: Particles near source, grid far away - best accuracy
 
 ### Physical Units & Real-World Concentrations
 - **Concentration in µg/m³**: Particle counts converted to physical concentrations
@@ -22,6 +31,9 @@ An advanced web-based interface for simulating and visualizing Lagrangian partic
 - **API Endpoints**: Manage emissions programmatically
 
 ### Enhanced API
+- `GET /api/models/list` - List all available dispersion models
+- `POST /api/models/select` - Switch between models
+- `GET /api/models/current` - Get current model info and statistics
 - `GET/POST /api/emissions` - Manage emission parameters
 - `POST /api/emissions/from-frp` - Convert FRP to emissions
 - `GET /api/emissions/factors` - Retrieve emission factor database
@@ -34,12 +46,18 @@ An advanced web-based interface for simulating and visualizing Lagrangian partic
 
 ## Features
 
+- **Model Selection**
+  - **Dropdown selector at top of page** - switch models instantly
+  - Real-time model information and advantages
+  - Automatic simulation reset when switching models
+  - Optimized for different scales and scenarios
+
 - **Interactive Parameter Control**
   - Adjust turbulent diffusion (σ_turb) in real-time
   - Change particles per hotspot (npph) from 500 to 10,000
   - Modify time step (dt) for simulation precision
-  - **NEW**: Set total mass per hotspot and mixing height
-  - **NEW**: Select pollutant type and emission factors
+  - Set total mass per hotspot and mixing height
+  - Select pollutant type and emission factors
 
 - **Dynamic Hotspot Management**
   - Add new emission sources with custom coordinates (vertical layout)

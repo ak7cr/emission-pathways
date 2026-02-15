@@ -11,6 +11,8 @@ from particle_physics import initialize_particles, emit_new_particles, advect, c
 from wind_field import get_wind_at_particles, load_wind_data, create_sample_wind_data
 from visualization import generate_frame
 from api_routes import register_routes
+from model_routes import register_model_routes
+from model_manager import model_manager
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 wind_fetcher = WindDataFetcher()
@@ -106,6 +108,9 @@ register_routes(
     load_wind_data,
     create_sample_wind_data
 )
+
+# Register model management routes
+register_model_routes(app, sim_state)
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

@@ -1,0 +1,80 @@
+<div class="section model-selector-section">
+    <h3>🎯 Dispersion Model</h3>
+    <div class="form-group">
+        <label for="model-type">Select Approach:</label>
+        <select id="model-type" onchange="changeModel()">
+            <option value="lagrangian">🎯 Lagrangian (Particle Tracking)</option>
+            <option value="eulerian">📐 Eulerian (Grid-Based PDE)</option>
+            <option value="gaussian_plume">📊 Gaussian Plume (Analytical)</option>
+            <option value="puff">💨 Puff Model (Discrete Puffs)</option>
+            <option value="semi_lagrangian">↩️ Semi-Lagrangian (Hybrid)</option>
+            <option value="hybrid">🔀 Hybrid (Lagrangian + Eulerian)</option>
+        </select>
+    </div>
+    
+    <div id="model-info" class="model-info">
+        <div class="model-description">
+            <strong>Description:</strong> <span id="model-desc">Track individual particles through space - best for point sources</span>
+        </div>
+        <div class="model-stats">
+            <small id="model-advantages">Advantages: Excellent for point sources, mass conservative</small>
+        </div>
+        <div class="model-runtime" id="model-runtime" style="display:none;">
+            <small><strong>Runtime:</strong> <span id="runtime-stats"></span></small>
+        </div>
+    </div>
+</div>
+
+<style>
+.model-selector-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.model-selector-section h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+}
+
+.model-selector-section select {
+    background: rgba(255,255,255,0.95);
+    color: #333;
+    font-weight: 500;
+}
+
+.model-info {
+    margin-top: 15px;
+    padding: 12px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 6px;
+    backdrop-filter: blur(10px);
+}
+
+.model-description {
+    margin-bottom: 8px;
+}
+
+.model-stats {
+    color: rgba(255,255,255,0.9);
+    font-style: italic;
+}
+
+.model-runtime {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,0.3);
+}
+
+.dark-mode .model-selector-section {
+    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+}
+
+.dark-mode .model-selector-section select {
+    background: rgba(255,255,255,0.9);
+}
+</style>
