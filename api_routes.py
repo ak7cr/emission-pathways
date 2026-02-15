@@ -296,6 +296,8 @@ def register_routes(app, sim_state, emission_data, wind_data_cache,
     def reset_simulation():
         """Reset simulation to initial state"""
         sim_state['particles'] = None
+        sim_state['particle_active'] = None
+        sim_state['model_state'] = None  # Clear model-specific state
         sim_state['current_frame'] = 0
         sim_state['is_playing'] = False
         sim_state['last_emission_time'] = 0.0
@@ -580,13 +582,13 @@ def register_routes(app, sim_state, emission_data, wind_data_cache,
     @app.route('/api/step', methods=['POST'])
     def step_simulation():
         """Advance simulation by one step and return frame"""
-        if sim_state['particles'] is None:
-            particles, particle_active = initialize_particles_func(
-                sim_state['hotspots'], 
-                sim_state['npph']
-            )
-            sim_state['particles'] = particles
-            sim_state['particle_active'] = particle_active
+        from universal_step import universal_step, universal_emit
+        
+        # Initialize model state if needed
+        if sim_state.get('model_state') is None:
+            # Will be initialized in universal_step
+            sim_state['particles'] = None
+            sim_state['particle_active'] = None
             sim_state['current_frame'] = 0
             sim_state['last_emission_time'] = 0.0
             update_mass_per_particle()
@@ -599,28 +601,30 @@ def register_routes(app, sim_state, emission_data, wind_data_cache,
         last_emission_time = sim_state.get('last_emission_time', 0.0)
         
         if emission_mode == 'continuous' and (t - last_emission_time) >= emission_interval:
-            # Emit new particles
-            sim_state['particles'], sim_state['particle_active'] = emit_new_particles_func(
-                sim_state['particles'],
-                sim_state['particle_active'],
-                sim_state['hotspots'],
-                sim_state['npph']
-            )
+            # Emit new particles/mass
+            sim_state = universal_emit(sim_state)
             sim_state['last_emission_time'] = t
         
-        sim_state['particles'] = advect_func(sim_state, t)
+        # Step simulation with current model
+        sim_state, H_normalized, H_physical = universal_step(sim_state, t, sim_state['dt'])
         
         # Calculate concentration statistics
-        H_normalized, H_physical = concentration_field_func(sim_state)
         max_conc = float(H_physical.max())
         mean_conc = float(H_physical.mean())
         total_mass = float(H_physical.sum() * sim_state['cell_area'] * sim_state['mixing_height'] / 1e6)
         
-        # Count active particles
-        n_active = int(sim_state['particle_active'].sum())
-        n_total = len(sim_state['particle_active'])
+        # Count active particles (for particle-based models)
+        model_type = sim_state.get('model_type', 'lagrangian')
+        if model_type in ['lagrangian', 'hybrid'] and sim_state['particle_active'] is not None:
+            n_active = int(sim_state['particle_active'].sum())
+            n_total = len(sim_state['particle_active'])
+        else:
+            # For grid-based models, use concentration as proxy
+            n_active = int((H_physical > 0.1).sum())  # Cells with significant concentration
+            n_total = H_physical.size
         
-        img_base64 = generate_frame_func(sim_state, t)
+        # Generate frame with pre-calculated concentration
+        img_base64 = generate_frame_func(sim_state, t, (H_normalized, H_physical))
         sim_state['current_frame'] += 1
         
         return jsonify({
@@ -628,6 +632,7 @@ def register_routes(app, sim_state, emission_data, wind_data_cache,
             'frame': sim_state['current_frame'],
             'time': t,
             'image': img_base64,
+            'model_type': model_type,
             'concentration': {
                 'max_ugm3': max_conc,
                 'mean_ugm3': mean_conc,
@@ -643,23 +648,23 @@ def register_routes(app, sim_state, emission_data, wind_data_cache,
     @app.route('/api/run', methods=['POST'])
     def run_simulation():
         """Run simulation for multiple steps"""
+        from universal_step import universal_step
+        
         data = request.json
         n_steps = data.get('n_steps', 10)
         
-        if sim_state['particles'] is None:
-            particles, particle_active = initialize_particles_func(
-                sim_state['hotspots'], 
-                sim_state['npph']
-            )
-            sim_state['particles'] = particles
-            sim_state['particle_active'] = particle_active
+        # Initialize if needed
+        if sim_state.get('model_state') is None:
+            sim_state['particles'] = None
+            sim_state['particle_active'] = None
             sim_state['current_frame'] = 0
+            update_mass_per_particle()
         
         images = []
         for _ in range(n_steps):
             t = sim_state['current_frame'] * sim_state['dt']
-            sim_state['particles'] = advect_func(sim_state, t)
-            img_base64 = generate_frame_func(sim_state, t)
+            sim_state, H_normalized, H_physical = universal_step(sim_state, t, sim_state['dt'])
+            img_base64 = generate_frame_func(sim_state, t, (H_normalized, H_physical))
             images.append(img_base64)
             sim_state['current_frame'] += 1
         

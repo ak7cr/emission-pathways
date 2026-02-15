@@ -65,14 +65,21 @@ def concentration_field_wrapper(sim_state_dict):
         simulation_state.ymin, simulation_state.ymax
     )
 
-def generate_frame_wrapper(sim_state_dict, t):
+def generate_frame_wrapper(sim_state_dict, t, concentration_tuple=None):
     """Wrapper for generate_frame function"""
+    # If concentration is already calculated, use it directly
+    if concentration_tuple is None:
+        concentration_func = lambda: concentration_field_wrapper(sim_state_dict)
+    else:
+        # Return pre-calculated concentration
+        concentration_func = lambda: concentration_tuple
+    
     # Access domain values dynamically from simulation_state module
     return generate_frame(
-        sim_state_dict['particles'],
-        sim_state_dict['particle_active'],
+        sim_state_dict.get('particles'),
+        sim_state_dict.get('particle_active'),
         t,
-        lambda: concentration_field_wrapper(sim_state_dict),
+        concentration_func,
         sim_state_dict['wind_type'],
         wind_data_cache,
         sim_state_dict.get('show_wind_vectors', True),

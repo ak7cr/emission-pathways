@@ -52,9 +52,10 @@ def generate_frame(particles, particle_active, t, concentration_func, wind_type,
     # Get max physical concentration for display
     max_conc = H_physical.max()
     
+    # Generic title (works for all models)
     ax.set_xlim(xmin, xmax)
     ax.set_ylim(ymin, ymax)
-    ax.set_title(f"Lagrangian Transport - t = {t:.1f} s | Max: {max_conc:.2f} µg/m³", fontsize=14)
+    ax.set_title(f"Atmospheric Dispersion - t = {t:.1f} s | Max: {max_conc:.2f} µg/m³", fontsize=14)
     ax.set_xlabel("X (km)")
     ax.set_ylabel("Y (km)")
     
@@ -88,14 +89,15 @@ def generate_frame(particles, particle_active, t, concentration_func, wind_type,
                      coordinates='axes', color='white', labelcolor='white',
                      fontproperties={'size': 10})
     
-    # Sample particles for display (only active particles)
-    particles_active = particles[particle_active]
-    
-    if len(particles_active) > 0:
-        n_display = min(1500, len(particles_active))
-        sample_idx = np.random.choice(len(particles_active), size=n_display, replace=False)
-        sample = particles_active[sample_idx]
-        ax.scatter(sample[:, 0], sample[:, 1], s=1, alpha=0.5, c='white')
+    # Sample particles for display (only active particles, if using particle-based model)
+    if particles is not None and particle_active is not None:
+        particles_active = particles[particle_active]
+        
+        if len(particles_active) > 0:
+            n_display = min(1500, len(particles_active))
+            sample_idx = np.random.choice(len(particles_active), size=n_display, replace=False)
+            sample = particles_active[sample_idx]
+            ax.scatter(sample[:, 0], sample[:, 1], s=1, alpha=0.5, c='white')
     
     # Plot hotspots
     for hx, hy in hotspots:
