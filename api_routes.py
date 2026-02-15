@@ -602,11 +602,13 @@ def register_routes(app, sim_state, emission_data, wind_data_cache,
         
         if emission_mode == 'continuous' and (t - last_emission_time) >= emission_interval:
             # Emit new particles/mass
-            sim_state = universal_emit(sim_state)
+            updated_state = universal_emit(sim_state)
+            sim_state.update(updated_state)
             sim_state['last_emission_time'] = t
         
         # Step simulation with current model
-        sim_state, H_normalized, H_physical = universal_step(sim_state, t, sim_state['dt'])
+        updated_state, H_normalized, H_physical = universal_step(sim_state, t, sim_state['dt'])
+        sim_state.update(updated_state)
         
         # Calculate concentration statistics
         max_conc = float(H_physical.max())
@@ -663,7 +665,8 @@ def register_routes(app, sim_state, emission_data, wind_data_cache,
         images = []
         for _ in range(n_steps):
             t = sim_state['current_frame'] * sim_state['dt']
-            sim_state, H_normalized, H_physical = universal_step(sim_state, t, sim_state['dt'])
+            updated_state, H_normalized, H_physical = universal_step(sim_state, t, sim_state['dt'])
+            sim_state.update(updated_state)
             img_base64 = generate_frame_func(sim_state, t, (H_normalized, H_physical))
             images.append(img_base64)
             sim_state['current_frame'] += 1
