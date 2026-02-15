@@ -639,26 +639,44 @@ let hotspots = [[40.0, 120.0], [60.0, 130.0], [30.0, 90.0]];
         
         const MODEL_INFO = {
             'lagrangian': {
+                name: 'Lagrangian (Particle Tracking)',
+                icon: '🎯',
+                subtitle: 'Track individual particles through space',
                 description: 'Track individual particles through space - best for point sources',
                 advantages: 'Excellent for point sources, mass conservative, handles complex terrain'
             },
             'eulerian': {
+                name: 'Eulerian (Grid-Based PDE)',
+                icon: '📐',
+                subtitle: 'Solve advection-diffusion on fixed grid',
                 description: 'Solve advection-diffusion PDE on fixed grid - best for large domains',
                 advantages: 'Fast for regional scale, no statistical noise, easy to couple with weather models'
             },
             'gaussian_plume': {
+                name: 'Gaussian Plume (Analytical)',
+                icon: '📊',
+                subtitle: 'Analytical steady-state solution',
                 description: 'Analytical steady-state solution - fastest, regulatory standard',
                 advantages: 'Extremely fast, no numerical errors, EPA/regulatory approved'
             },
             'puff': {
+                name: 'Puff Model (Discrete Puffs)',
+                icon: '💨',
+                subtitle: 'Track expanding Gaussian puffs',
                 description: 'Track expanding Gaussian puffs - good for intermittent sources',
                 advantages: 'Time-varying winds, intermittent emissions, faster than full Lagrangian'
             },
             'semi_lagrangian': {
+                name: 'Semi-Lagrangian (Hybrid)',
+                icon: '↩️',
+                subtitle: 'Backward trajectory on grid',
                 description: 'Backward trajectory on grid - reduces numerical diffusion',
                 advantages: 'Stable with large timesteps, reduced numerical diffusion, good accuracy'
             },
             'hybrid': {
+                name: 'Hybrid (Lagrangian + Eulerian)',
+                icon: '🔀',
+                subtitle: 'Particles near source, grid far away',
                 description: 'Particles near source, grid far away - best accuracy and efficiency',
                 advantages: 'Best of both worlds: accuracy near source, efficiency at distance'
             }
@@ -732,8 +750,16 @@ let hotspots = [[40.0, 120.0], [60.0, 130.0], [30.0, 90.0]];
         function updateModelInfo(modelType) {
             const info = MODEL_INFO[modelType];
             if (info) {
-                document.getElementById('model-desc').textContent = info.description;
-                document.getElementById('model-advantages').textContent = `Advantages: ${info.advantages}`;
+                // Update page title and header
+                document.getElementById('page-title').textContent = `${info.name} - Simulator`;
+                document.getElementById('page-header').textContent = `${info.icon} ${info.name}`;
+                document.getElementById('page-subtitle').textContent = info.subtitle;
+                
+                // Update model description section (if it exists)
+                const descElement = document.getElementById('model-desc');
+                const advElement = document.getElementById('model-advantages');
+                if (descElement) descElement.textContent = info.description;
+                if (advElement) advElement.textContent = `Advantages: ${info.advantages}`;
             }
         }
         
